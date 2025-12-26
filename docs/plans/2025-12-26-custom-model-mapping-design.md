@@ -7,7 +7,7 @@
 
 Fitur untuk membuat alias model yang di-route ke provider dan upstream model tertentu.
 
-**Contoh:** Client kirim `my-claude` → route ke provider `antigravity` dengan model `gemini-claude-sonnet-4-5`
+**Contoh:** Client kirim `my-claude` → route ke provider `antigravity` dengan model `claude-sonnet-4-5`
 
 ## Decisions
 
@@ -59,7 +59,7 @@ type ModelMapping struct {
 ### Redis Key Pattern
 
 - Key: `model:mapping:{alias}`
-- Value: `{"provider_id": "antigravity", "model_name": "gemini-2.0-flash"}`
+- Value: `{"provider_id": "antigravity", "model_name": "claude-sonnet-4-5"}`
 - TTL: none (persistent sampai di-invalidate)
 
 ## Request Flow
@@ -112,7 +112,7 @@ POST /api/v1/model-mappings
 {
     "alias": "my-claude",
     "provider_id": "antigravity",
-    "model_name": "gemini-claude-sonnet-4-5",
+    "model_name": "claude-sonnet-4-5",
     "description": "My default Claude model",
     "enabled": true
 }
@@ -121,7 +121,7 @@ Response: 201 Created
 {
     "alias": "my-claude",
     "provider_id": "antigravity",
-    "model_name": "gemini-claude-sonnet-4-5",
+    "model_name": "claude-sonnet-4-5",
     "description": "My default Claude model",
     "enabled": true,
     "created_at": "2025-12-26T10:00:00Z"
@@ -145,7 +145,7 @@ Response: 200 OK
 
 - `alias`: required, unique, alphanumeric + dash/underscore
 - `provider_id`: required, must exist in registry
-- `model_name`: required, exact upstream model name (e.g., `gemini-claude-sonnet-4-5`, `gpt-4o`, `glm-4-flash`)
+- `model_name`: required, must exist in provider's `supported_models` (e.g., `claude-sonnet-4-5`, `gpt-4o`, `glm-4-flash`)
 
 ## Cache Invalidation Logic
 
