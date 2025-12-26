@@ -46,3 +46,30 @@ func (r *ModelMappingRepository) Update(alias string, mapping *models.ModelMappi
 func (r *ModelMappingRepository) Delete(alias string) error {
 	return r.db.Where("alias = ?", alias).Delete(&models.ModelMapping{}).Error
 }
+
+func (r *ModelMappingRepository) ListForUser(userID string, limit, offset int) ([]*models.ModelMapping, int64, error) {
+	var mappings []*models.ModelMapping
+	var total int64
+
+	// Show global (owner_id IS NULL) + user's own mappings
+	query := r.db.Model(&models.ModelMapping{}).Where("owner_id IS NULL OR owner_id = ?", userID)
+
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	err := r.db.Where("owner_id IS NULL OR owner_id = ?", userID).
+		Order("priority DESC, alias ASC").
+		Limit(limit).Offset(offset).
+		Find(&mappings).Error
+	return mappings, total, err
+}
+
+func (r *ModelMappingRepository) GetByAliasWithOwner(alias string) (*models.ModelMapping, error) {
+	var mapping models.ModelMapping
+	err := r.db.Where("alias = ?", alias).First(&mapping).Error
+	if err != nil {
+		return nil, err
+	}
+	return &mapping, nil
+}

@@ -115,3 +115,11 @@ func (s *ModelMappingService) cacheMapping(ctx context.Context, alias string, re
 	}
 	return s.redis.Set(ctx, key, val, 0).Err() // 0 = no expiry
 }
+
+func (s *ModelMappingService) ListForUser(userID string, limit, offset int) ([]*models.ModelMapping, int64, error) {
+	return s.repo.ListForUser(userID, limit, offset)
+}
+
+func (s *ModelMappingService) GetByAliasWithOwner(alias string) (*models.ModelMapping, error) {
+	return s.repo.GetByAliasWithOwner(alias)
+}

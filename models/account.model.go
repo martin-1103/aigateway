@@ -17,6 +17,7 @@ type Account struct {
 	UsageCount int64      `gorm:"default:0" json:"usage_count"`
 	CreatedAt  time.Time  `json:"created_at"`
 	UpdatedAt  time.Time  `json:"updated_at"`
+	CreatedBy  *string    `gorm:"type:varchar(36);index" json:"created_by,omitempty"`
 
 	Provider *Provider `gorm:"foreignKey:ProviderID" json:"provider,omitempty"`
 	Proxy    *Proxy    `gorm:"foreignKey:ProxyID" json:"proxy,omitempty"`

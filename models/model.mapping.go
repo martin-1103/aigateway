@@ -10,6 +10,7 @@ type ModelMapping struct {
 	Description string    `gorm:"size:255" json:"description,omitempty"`
 	Enabled     bool      `gorm:"default:true" json:"enabled"`
 	Priority    int       `gorm:"default:0" json:"priority"`
+	OwnerID     *string   `gorm:"type:varchar(36);index" json:"owner_id,omitempty"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
 }
