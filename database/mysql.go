@@ -42,5 +42,6 @@ func AutoMigrate(db *gorm.DB) error {
 		&models.Proxy{},
 		&models.ProxyStats{},
 		&models.RequestLog{},
+		&models.ModelMapping{},
 	)
 }
