@@ -58,6 +58,7 @@ func main() {
 	accountService := services.NewAccountService(accountRepo, redis)
 	proxyService := services.NewProxyService(proxyRepo, accountRepo)
 	oauthService := services.NewOAuthService(redis, accountRepo)
+	oauthFlowService := services.NewOAuthFlowService(redis, accountService, accountRepo)
 
 	// Initialize and start token refresh service
 	tokenRefreshService := services.NewTokenRefreshService(accountRepo, redis)
@@ -118,6 +119,7 @@ func main() {
 	authHandler := handlers.NewAuthHandler(authService, userService)
 	userHandler := handlers.NewUserHandler(userService)
 	apiKeyHandler := handlers.NewAPIKeyHandler(apiKeyService)
+	oauthHandler := handlers.NewOAuthHandler(oauthFlowService)
 
 	// Initialize auth middleware
 	authMiddleware := middleware.NewAuthMiddleware(authService)
@@ -135,6 +137,7 @@ func main() {
 		authHandler,
 		userHandler,
 		apiKeyHandler,
+		oauthHandler,
 		authMiddleware,
 	)
 
