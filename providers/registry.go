@@ -4,32 +4,30 @@ import (
 	"fmt"
 	"strings"
 	"sync"
-
-	"aigateway/models"
 )
 
 // Registry manages provider instances with thread-safe operations
 type Registry struct {
 	mu        sync.RWMutex
-	providers map[string]*models.Provider
+	providers map[string]Provider
 }
 
 // NewRegistry creates a new provider registry
 func NewRegistry() *Registry {
 	return &Registry{
-		providers: make(map[string]*models.Provider),
+		providers: make(map[string]Provider),
 	}
 }
 
 // Register adds a provider to the registry
-func (r *Registry) Register(id string, provider *models.Provider) {
+func (r *Registry) Register(id string, provider Provider) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.providers[id] = provider
 }
 
 // Get retrieves a provider by ID
-func (r *Registry) Get(id string) (*models.Provider, error) {
+func (r *Registry) Get(id string) (Provider, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
@@ -38,19 +36,15 @@ func (r *Registry) Get(id string) (*models.Provider, error) {
 		return nil, fmt.Errorf("provider not found: %s", id)
 	}
 
-	if !provider.IsActive {
-		return nil, fmt.Errorf("provider is inactive: %s", id)
-	}
-
 	return provider, nil
 }
 
 // List returns all registered providers
-func (r *Registry) List() []*models.Provider {
+func (r *Registry) List() []Provider {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	list := make([]*models.Provider, 0, len(r.providers))
+	list := make([]Provider, 0, len(r.providers))
 	for _, provider := range r.providers {
 		list = append(list, provider)
 	}
@@ -59,7 +53,7 @@ func (r *Registry) List() []*models.Provider {
 }
 
 // GetByModel retrieves a provider based on model prefix matching
-func (r *Registry) GetByModel(model string) (*models.Provider, error) {
+func (r *Registry) GetByModel(model string) (Provider, error) {
 	providerID := r.routeModel(model)
 	if providerID == "" {
 		return nil, fmt.Errorf("no provider found for model: %s", model)
@@ -96,7 +90,7 @@ func (r *Registry) Remove(id string) {
 }
 
 // Update updates an existing provider in the registry
-func (r *Registry) Update(id string, provider *models.Provider) error {
+func (r *Registry) Update(id string, provider Provider) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -116,19 +110,9 @@ func (r *Registry) Exists(id string) bool {
 	return exists
 }
 
-// ListActive returns only active providers
-func (r *Registry) ListActive() []*models.Provider {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	list := make([]*models.Provider, 0, len(r.providers))
-	for _, provider := range r.providers {
-		if provider.IsActive {
-			list = append(list, provider)
-		}
-	}
-
-	return list
+// ListActive returns all registered providers (all are considered active)
+func (r *Registry) ListActive() []Provider {
+	return r.List()
 }
 
 // Count returns the total number of registered providers
@@ -142,5 +126,5 @@ func (r *Registry) Count() int {
 func (r *Registry) Clear() {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	r.providers = make(map[string]*models.Provider)
+	r.providers = make(map[string]Provider)
 }
