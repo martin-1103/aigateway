@@ -39,6 +39,15 @@ type Provider interface {
 	// req: the execution request with all necessary parameters
 	// Returns the execution response or an error
 	Execute(ctx context.Context, req *ExecuteRequest) (*ExecuteResponse, error)
+
+	// ExecuteStream performs a streaming API call to the provider
+	// ctx: context for cancellation and timeout control
+	// req: the execution request with all necessary parameters
+	// Returns a stream response with data/error channels or an error
+	ExecuteStream(ctx context.Context, req *ExecuteRequest) (*StreamResponse, error)
+
+	// SupportsStreaming indicates whether this provider supports streaming
+	SupportsStreaming() bool
 }
 
 // ExecuteRequest contains all parameters needed to execute a provider API call
@@ -72,4 +81,22 @@ type ExecuteResponse struct {
 
 	// LatencyMs is the request latency in milliseconds
 	LatencyMs int
+}
+
+// StreamResponse contains channels for streaming API responses
+type StreamResponse struct {
+	// StatusCode is the HTTP status code from the provider
+	StatusCode int
+
+	// Headers contains response headers
+	Headers map[string]string
+
+	// DataCh streams data chunks as they arrive
+	DataCh <-chan []byte
+
+	// ErrCh streams any errors that occur during streaming
+	ErrCh <-chan error
+
+	// Done signals when the stream is complete
+	Done <-chan struct{}
 }
