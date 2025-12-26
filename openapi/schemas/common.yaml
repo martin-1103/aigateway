@@ -1,0 +1,11 @@
+# Common shared schemas
+
+Error:
+  error: string
+
+Success:
+  message: string
+
+# Type aliases
+datetime: string                  # ISO 8601: 2024-12-26T10:00:00Z
+date: string                      # YYYY-MM-DD

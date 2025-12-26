@@ -1,0 +1,53 @@
+openapi: 3.0.3
+info:
+  title: AIGateway
+  version: 1.0.0
+
+x-api-map:
+  proxy:
+    file: paths/proxy.yaml
+    endpoints:
+      - POST /v1/messages           # Anthropic format
+      - POST /v1/chat/completions   # OpenAI format
+
+  accounts:
+    file: paths/accounts.yaml
+    endpoints:
+      - GET    /api/v1/accounts
+      - POST   /api/v1/accounts
+      - GET    /api/v1/accounts/{id}
+      - PUT    /api/v1/accounts/{id}
+      - DELETE /api/v1/accounts/{id}
+
+  proxies:
+    file: paths/proxies.yaml
+    endpoints:
+      - GET    /api/v1/proxies
+      - POST   /api/v1/proxies
+      - GET    /api/v1/proxies/{id}
+      - PUT    /api/v1/proxies/{id}
+      - DELETE /api/v1/proxies/{id}
+      - GET    /api/v1/proxies/assignments
+      - POST   /api/v1/proxies/recalculate
+
+  stats:
+    file: paths/stats.yaml
+    endpoints:
+      - GET /api/v1/stats/proxies/{id}
+      - GET /api/v1/stats/logs
+
+  providers:
+    file: paths/providers.yaml
+    endpoints:
+      - GET /api/v1/providers
+
+  health:
+    file: paths/health.yaml
+    endpoints:
+      - GET /health
+
+x-schemas:
+  account: schemas/account.yaml
+  proxy: schemas/proxy.yaml
+  provider: schemas/provider.yaml
+  common: schemas/common.yaml

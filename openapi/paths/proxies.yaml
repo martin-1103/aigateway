@@ -1,0 +1,69 @@
+# Proxy pool management endpoints
+
+list:
+  method: GET
+  path: /api/v1/proxies
+  query:
+    limit: integer                # default: 20
+    offset: integer               # default: 0
+  response:
+    data: Proxy[]
+    total: integer
+    limit: integer
+    offset: integer
+
+create:
+  method: POST
+  path: /api/v1/proxies
+  body:
+    url: string                   # required
+    protocol: string              # http | https | socks5
+    is_active: boolean
+    max_accounts: integer
+    priority: integer
+    weight: integer
+    max_failures: integer
+  response: Proxy
+  status: 201
+
+get:
+  method: GET
+  path: /api/v1/proxies/{id}
+  params:
+    id: integer
+  response: Proxy
+
+update:
+  method: PUT
+  path: /api/v1/proxies/{id}
+  params:
+    id: integer
+  body:
+    url: string
+    protocol: string
+    is_active: boolean
+    max_accounts: integer
+    priority: integer
+    weight: integer
+    max_failures: integer
+  response: Proxy
+
+delete:
+  method: DELETE
+  path: /api/v1/proxies/{id}
+  params:
+    id: integer
+  response:
+    message: string               # "proxy deleted"
+
+assignments:
+  method: GET
+  path: /api/v1/proxies/assignments
+  response:
+    assignments: object           # map[proxy_id] -> account_id[]
+
+recalculate:
+  method: POST
+  path: /api/v1/proxies/recalculate
+  response:
+    message: string               # "counts recalculated"

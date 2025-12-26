@@ -1,0 +1,8 @@
+# Health check endpoint
+
+check:
+  method: GET
+  path: /health
+  response:
+    status: string                # ok
+    service: string               # aigateway

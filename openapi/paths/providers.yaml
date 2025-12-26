@@ -1,0 +1,16 @@
+# Provider endpoints
+
+list:
+  method: GET
+  path: /api/v1/providers
+  response:
+    providers: ProviderInfo[]
+    total: integer
+
+types:
+  ProviderInfo:
+    id: string                    # antigravity | openai | glm
+    name: string
+    base_url: string
+    auth_type: string             # oauth | api_key | bearer
+    is_active: boolean

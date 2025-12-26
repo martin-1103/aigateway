@@ -1,0 +1,50 @@
+# Account management endpoints
+
+list:
+  method: GET
+  path: /api/v1/accounts
+  query:
+    limit: integer                # default: 20
+    offset: integer               # default: 0
+  response:
+    data: Account[]
+    total: integer
+    limit: integer
+    offset: integer
+
+create:
+  method: POST
+  path: /api/v1/accounts
+  body:
+    provider_id: string           # required: antigravity | openai | glm
+    label: string
+    auth_data: string             # JSON string
+    is_active: boolean
+  response: Account
+  status: 201
+
+get:
+  method: GET
+  path: /api/v1/accounts/{id}
+  params:
+    id: string
+  response: Account
+
+update:
+  method: PUT
+  path: /api/v1/accounts/{id}
+  params:
+    id: string
+  body:
+    label: string
+    auth_data: string             # JSON string
+    is_active: boolean
+  response: Account
+
+delete:
+  method: DELETE
+  path: /api/v1/accounts/{id}
+  params:
+    id: string
+  response:
+    message: string               # "account deleted"

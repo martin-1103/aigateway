@@ -1,0 +1,42 @@
+# Proxy models - matches models/proxy.model.go
+
+Proxy:
+  id: integer                     # auto-increment
+  url: string
+  protocol: string                # http | https | socks5
+  is_active: boolean
+  health_status: string           # healthy | degraded | down
+  max_accounts: integer
+  current_accounts: integer
+  last_used_at: datetime | null
+  usage_count: integer
+  priority: integer
+  weight: integer
+  consecutive_failures: integer
+  max_failures: integer
+  success_rate: float             # decimal(5,2)
+  avg_latency_ms: integer
+  last_checked_at: datetime | null
+  created_at: datetime
+  updated_at: datetime
+
+ProxyStats:
+  id: integer
+  proxy_id: integer
+  provider_id: string | null
+  request_count: integer
+  success_count: integer
+  error_count: integer
+  total_latency_ms: integer
+  date: date
+
+RequestLog:
+  id: integer
+  provider_id: string | null
+  account_id: string | null
+  proxy_id: integer | null
+  model: string
+  status_code: integer
+  latency_ms: integer
+  error: string
+  created_at: datetime
