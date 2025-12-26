@@ -24,8 +24,9 @@ type ProviderConfig struct {
 }
 
 type ServerConfig struct {
-	Host string `yaml:"host"`
-	Port int    `yaml:"port"`
+	Host      string `yaml:"host"`
+	Port      int    `yaml:"port"`
+	JWTSecret string `yaml:"jwt_secret"`
 }
 
 type DatabaseConfig struct {

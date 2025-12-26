@@ -4,6 +4,7 @@ import (
 	"aigateway/config"
 	"aigateway/database"
 	"aigateway/handlers"
+	"aigateway/middleware"
 	"aigateway/providers"
 	"aigateway/providers/antigravity"
 	"aigateway/providers/glm"
@@ -35,6 +36,11 @@ func main() {
 		log.Fatalf("Failed to migrate database: %v", err)
 	}
 
+	// Seed default admin user
+	if err := database.SeedDefaultAdmin(db); err != nil {
+		log.Fatalf("Failed to seed admin: %v", err)
+	}
+
 	redis, err := database.NewRedis(&cfg.Redis)
 	if err != nil {
 		log.Fatalf("Failed to connect to Redis: %v", err)
@@ -45,6 +51,8 @@ func main() {
 	proxyRepo := repositories.NewProxyRepository(db)
 	statsRepo := repositories.NewStatsRepository(db)
 	modelMappingRepo := repositories.NewModelMappingRepository(db)
+	userRepo := repositories.NewUserRepository(db)
+	apiKeyRepo := repositories.NewAPIKeyRepository(db)
 
 	// Initialize core services
 	accountService := services.NewAccountService(accountRepo, redis)
@@ -60,6 +68,13 @@ func main() {
 	statsQueryService := services.NewStatsQueryService(statsRepo)
 	modelsService := services.NewModelsService(db, redis)
 	modelMappingService := services.NewModelMappingService(modelMappingRepo, redis)
+
+	// Initialize RBAC services
+	passwordService := services.NewPasswordService()
+	jwtService := services.NewJWTService(cfg.Server.JWTSecret)
+	userService := services.NewUserService(userRepo, passwordService)
+	apiKeyService := services.NewAPIKeyService(apiKeyRepo, redis)
+	authService := services.NewAuthService(userService, jwtService, apiKeyService)
 
 	// Initialize providers
 	antigravityProvider := antigravity.NewAntigravityProvider()
@@ -100,10 +115,28 @@ func main() {
 	statsHandler := handlers.NewStatsHandler(statsQueryService)
 	modelsHandler := handlers.NewModelsHandler(modelsService)
 	modelMappingHandler := handlers.NewModelMappingHandler(modelMappingService)
+	authHandler := handlers.NewAuthHandler(authService, userService)
+	userHandler := handlers.NewUserHandler(userService)
+	apiKeyHandler := handlers.NewAPIKeyHandler(apiKeyService)
+
+	// Initialize auth middleware
+	authMiddleware := middleware.NewAuthMiddleware(authService)
 
 	// Setup routes
 	r := gin.Default()
-	routes.SetupRoutes(r, proxyHandler, accountHandler, proxyMgmtHandler, statsHandler, modelsHandler, modelMappingHandler)
+	routes.SetupRoutes(
+		r,
+		proxyHandler,
+		accountHandler,
+		proxyMgmtHandler,
+		statsHandler,
+		modelsHandler,
+		modelMappingHandler,
+		authHandler,
+		userHandler,
+		apiKeyHandler,
+		authMiddleware,
+	)
 
 	// Setup graceful shutdown
 	quit := make(chan os.Signal, 1)
