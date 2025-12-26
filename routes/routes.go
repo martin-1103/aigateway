@@ -12,6 +12,8 @@ func SetupRoutes(
 	accountHandler *handlers.AccountHandler,
 	proxyMgmtHandler *handlers.ProxyManagementHandler,
 	statsHandler *handlers.StatsHandler,
+	modelsHandler *handlers.ModelsHandler,
+	modelMappingHandler *handlers.ModelMappingHandler,
 ) {
 	// Health check endpoint
 	r.GET("/health", proxyHandler.HealthCheck)
@@ -19,6 +21,9 @@ func SetupRoutes(
 	// AI model proxy endpoints
 	r.POST("/v1/messages", proxyHandler.HandleProxy)
 	r.POST("/v1/chat/completions", proxyHandler.HandleProxy)
+
+	// Public models endpoint
+	r.GET("/v1/models", modelsHandler.GetModels)
 
 	api := r.Group("/api/v1")
 	{
@@ -49,6 +54,15 @@ func SetupRoutes(
 		{
 			stats.GET("/proxies/:id", statsHandler.GetProxyStats)
 			stats.GET("/logs", statsHandler.GetRecentLogs)
+		}
+
+		mappings := api.Group("/model-mappings")
+		{
+			mappings.GET("", modelMappingHandler.List)
+			mappings.GET("/:alias", modelMappingHandler.Get)
+			mappings.POST("", modelMappingHandler.Create)
+			mappings.PUT("/:alias", modelMappingHandler.Update)
+			mappings.DELETE("/:alias", modelMappingHandler.Delete)
 		}
 	}
 }

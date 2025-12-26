@@ -1,15 +1,28 @@
 package providers
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"sync"
 )
 
+// MappingResolver resolves custom model aliases to provider and model
+type MappingResolver interface {
+	Resolve(ctx context.Context, alias string) *ResolvedMapping
+}
+
+// ResolvedMapping contains the resolved provider and model for an alias
+type ResolvedMapping struct {
+	ProviderID string
+	ModelName  string
+}
+
 // Registry manages provider instances with thread-safe operations
 type Registry struct {
-	mu        sync.RWMutex
-	providers map[string]Provider
+	mu              sync.RWMutex
+	providers       map[string]Provider
+	mappingResolver MappingResolver
 }
 
 // NewRegistry creates a new provider registry
@@ -17,6 +30,11 @@ func NewRegistry() *Registry {
 	return &Registry{
 		providers: make(map[string]Provider),
 	}
+}
+
+// SetMappingResolver sets the custom mapping resolver
+func (r *Registry) SetMappingResolver(resolver MappingResolver) {
+	r.mappingResolver = resolver
 }
 
 // Register adds a provider to the registry
@@ -52,14 +70,32 @@ func (r *Registry) List() []Provider {
 	return list
 }
 
-// GetByModel retrieves a provider based on model prefix matching
-func (r *Registry) GetByModel(model string) (Provider, error) {
-	providerID := r.routeModel(model)
-	if providerID == "" {
-		return nil, fmt.Errorf("no provider found for model: %s", model)
+// GetByModel retrieves a provider based on model name
+// Returns: provider, resolvedModelName, error
+// If custom mapping exists, resolvedModelName may differ from input model
+func (r *Registry) GetByModel(model string) (Provider, string, error) {
+	// 1. Check custom mapping first
+	if r.mappingResolver != nil {
+		if mapping := r.mappingResolver.Resolve(context.Background(), model); mapping != nil {
+			provider, err := r.Get(mapping.ProviderID)
+			if err != nil {
+				return nil, "", err
+			}
+			return provider, mapping.ModelName, nil
+		}
 	}
 
-	return r.Get(providerID)
+	// 2. Fallback to prefix matching
+	providerID := r.routeModel(model)
+	if providerID == "" {
+		return nil, "", fmt.Errorf("no provider found for model: %s", model)
+	}
+
+	provider, err := r.Get(providerID)
+	if err != nil {
+		return nil, "", err
+	}
+	return provider, model, nil
 }
 
 // routeModel maps model names to provider IDs based on prefix matching
@@ -72,6 +108,10 @@ func (r *Registry) routeModel(model string) string {
 	case strings.HasPrefix(modelLower, "gemini-"):
 		return "antigravity"
 	case strings.HasPrefix(modelLower, "claude-sonnet-"):
+		return "antigravity"
+	case strings.HasPrefix(modelLower, "claude-opus-"):
+		return "antigravity"
+	case strings.HasPrefix(modelLower, "claude-haiku-"):
 		return "antigravity"
 	case strings.HasPrefix(modelLower, "gpt-"):
 		return "openai"

@@ -48,19 +48,21 @@ func NewRouterService(
 }
 
 // Route determines the appropriate provider for a given model
-func (s *RouterService) Route(model string) (providers.Provider, error) {
-	provider, err := s.registry.GetByModel(model)
+// Returns: provider, resolvedModelName, error
+// resolvedModelName may differ from input if custom mapping exists
+func (s *RouterService) Route(model string) (providers.Provider, string, error) {
+	provider, resolvedModel, err := s.registry.GetByModel(model)
 	if err != nil {
-		return nil, fmt.Errorf("failed to route model %s: %w", model, err)
+		return nil, "", fmt.Errorf("failed to route model %s: %w", model, err)
 	}
 
-	return provider, nil
+	return provider, resolvedModel, nil
 }
 
 // Execute orchestrates the complete request pipeline: route → account select → proxy assign → auth → provider execute → stats
 func (s *RouterService) Execute(ctx context.Context, req Request) (Response, error) {
-	// Step 1: Route to appropriate provider
-	provider, err := s.Route(req.Model)
+	// Step 1: Route to appropriate provider (may resolve alias to actual model)
+	provider, resolvedModel, err := s.Route(req.Model)
 	if err != nil {
 		return Response{}, err
 	}
@@ -68,7 +70,7 @@ func (s *RouterService) Execute(ctx context.Context, req Request) (Response, err
 	providerID := provider.ID()
 
 	// Step 2: Select account using round-robin
-	account, err := s.accountService.SelectAccount(providerID, req.Model)
+	account, err := s.accountService.SelectAccount(providerID, resolvedModel)
 	if err != nil {
 		return Response{}, fmt.Errorf("failed to select account: %w", err)
 	}
@@ -84,9 +86,9 @@ func (s *RouterService) Execute(ctx context.Context, req Request) (Response, err
 		return Response{}, fmt.Errorf("failed to get access token: %w", err)
 	}
 
-	// Step 5: Execute provider request
+	// Step 5: Execute provider request (use resolved model name)
 	executeReq := &providers.ExecuteRequest{
-		Model:    req.Model,
+		Model:    resolvedModel,
 		Payload:  req.Payload,
 		Stream:   req.Stream,
 		Account:  account,
@@ -110,7 +112,7 @@ func (s *RouterService) Execute(ctx context.Context, req Request) (Response, err
 		&account.ID,
 		account.ProxyID,
 		providerIDPtr,
-		req.Model,
+		resolvedModel,
 		statusCode,
 		latencyMs,
 	)
