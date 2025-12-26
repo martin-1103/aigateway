@@ -260,8 +260,8 @@ func TranslateClaudeToAntigravityWithProject(payload []byte, model string, proje
 	// Convert stop sequences
 	if stopSeq := gjson.GetBytes(payload, "stop_sequences"); stopSeq.IsArray() {
 		stopJSON := "[]"
-		for i, seq := range stopSeq.Array() {
-			stopJSON, _ = sjson.Set(stopJSON, string(rune(i)), seq.String())
+		for _, seq := range stopSeq.Array() {
+			stopJSON, _ = sjson.SetRaw(stopJSON, "-1", `"`+seq.String()+`"`)
 		}
 		result, _ = sjson.SetRaw(result, "request.generationConfig.stopSequences", stopJSON)
 		result, _ = sjson.Delete(result, "stop_sequences")

@@ -171,3 +171,52 @@ func (p *AntigravityProvider) getHTTPClient(proxyURL string) *http.Client {
 	p.httpClients[cacheKey] = client
 	return client
 }
+
+// ExecuteStream performs a streaming API call to Antigravity
+func (p *AntigravityProvider) ExecuteStream(ctx context.Context, req *providers.ExecuteRequest) (*providers.StreamResponse, error) {
+	if req.Account == nil {
+		return nil, fmt.Errorf("account is required")
+	}
+
+	// Parse auth data to get access token and project ID
+	var authData map[string]interface{}
+	if err := json.Unmarshal([]byte(req.Account.AuthData), &authData); err != nil {
+		return nil, fmt.Errorf("failed to parse auth data: %w", err)
+	}
+
+	// Extract access token
+	accessToken := req.Token
+	if accessToken == "" {
+		token, ok := authData["access_token"].(string)
+		if !ok || token == "" {
+			return nil, fmt.Errorf("no access token found in account")
+		}
+		accessToken = token
+	}
+
+	// Extract project ID for antigravity request
+	projectID, _ := authData["project_id"].(string)
+
+	// Translate payload to antigravity format with project ID
+	translatedPayload := TranslateClaudeToAntigravityWithProject(req.Payload, req.Model, projectID)
+
+	// Get or create HTTP client for this proxy
+	httpClient := p.getHTTPClient(req.ProxyURL)
+
+	// Create executor request
+	execReq := &ExecuteRequest{
+		Model:       req.Model,
+		Payload:     translatedPayload,
+		Stream:      true,
+		AccessToken: accessToken,
+		HTTPClient:  httpClient,
+	}
+
+	// Execute streaming request
+	return executeStreamAdapter(ctx, p.executor, execReq)
+}
+
+// SupportsStreaming indicates that Antigravity supports streaming
+func (p *AntigravityProvider) SupportsStreaming() bool {
+	return true
+}
