@@ -30,11 +30,29 @@ func TranslateAntigravityToClaude(payload []byte) []byte {
 	contentJSON, _ = sjson.Set(contentJSON, "role", role)
 
 	// Convert parts to content blocks
-	// Antigravity: "candidates.0.content.parts": [{"text": "..."}, {"functionCall": {...}}]
-	// Claude: "content": [{"type": "text", "text": "..."}, {"type": "tool_use", ...}]
+	// Antigravity: "candidates.0.content.parts": [{"text": "..."}, {"functionCall": {...}}, {"thought": true, "text": "...", "thoughtSignature": "..."}]
+	// Claude: "content": [{"type": "text", "text": "..."}, {"type": "tool_use", ...}, {"type": "thinking", "thinking": "...", "signature": "..."}]
 	parts := responseNode.Get("candidates.0.content.parts")
 	if parts.IsArray() {
 		for _, part := range parts.Array() {
+			// Handle thinking/thought blocks (must come before text check)
+			if thought := part.Get("thought"); thought.Exists() && thought.Bool() {
+				thinkingPart := `{"type":"thinking","thinking":""}`
+				thinkingText := part.Get("text").String()
+				thinkingPart, _ = sjson.Set(thinkingPart, "thinking", thinkingText)
+
+				// Add signature if present
+				signature := part.Get("thoughtSignature").String()
+				if signature == "" {
+					signature = part.Get("thought_signature").String()
+				}
+				if signature != "" {
+					thinkingPart, _ = sjson.Set(thinkingPart, "signature", signature)
+				}
+				contentJSON, _ = sjson.SetRaw(contentJSON, "content.-1", thinkingPart)
+				continue
+			}
+
 			// Handle text parts
 			if text := part.Get("text"); text.Exists() {
 				textPart := `{"type":"text","text":""}`
@@ -48,8 +66,12 @@ func TranslateAntigravityToClaude(payload []byte) []byte {
 				name := functionCall.Get("name").String()
 				args := functionCall.Get("args")
 
-				// Generate a simple ID based on function name
-				toolUsePart, _ = sjson.Set(toolUsePart, "id", "toolu_"+name)
+				// Use ID from response or generate one
+				toolID := functionCall.Get("id").String()
+				if toolID == "" {
+					toolID = "toolu_" + name
+				}
+				toolUsePart, _ = sjson.Set(toolUsePart, "id", toolID)
 				toolUsePart, _ = sjson.Set(toolUsePart, "name", name)
 				if args.Exists() {
 					toolUsePart, _ = sjson.SetRaw(toolUsePart, "input", args.Raw)
@@ -63,7 +85,12 @@ func TranslateAntigravityToClaude(payload []byte) []byte {
 				name := functionResponse.Get("name").String()
 				response := functionResponse.Get("response")
 
-				toolResultPart, _ = sjson.Set(toolResultPart, "tool_use_id", "toolu_"+name)
+				// Use ID from response or generate one
+				toolID := functionResponse.Get("id").String()
+				if toolID == "" {
+					toolID = "toolu_" + name
+				}
+				toolResultPart, _ = sjson.Set(toolResultPart, "tool_use_id", toolID)
 
 				// Extract result from response
 				if result := response.Get("result"); result.Exists() {
@@ -77,6 +104,18 @@ func TranslateAntigravityToClaude(payload []byte) []byte {
 					toolResultPart, _ = sjson.SetRaw(toolResultPart, "content", response.Raw)
 				}
 				contentJSON, _ = sjson.SetRaw(contentJSON, "content.-1", toolResultPart)
+			}
+
+			// Handle inline data (images)
+			if inlineData := part.Get("inlineData"); inlineData.Exists() {
+				imagePart := `{"type":"image","source":{"type":"base64"}}`
+				if mimeType := inlineData.Get("mime_type").String(); mimeType != "" {
+					imagePart, _ = sjson.Set(imagePart, "source.media_type", mimeType)
+				}
+				if data := inlineData.Get("data").String(); data != "" {
+					imagePart, _ = sjson.Set(imagePart, "source.data", data)
+				}
+				contentJSON, _ = sjson.SetRaw(contentJSON, "content.-1", imagePart)
 			}
 		}
 	}
@@ -145,14 +184,45 @@ func TranslateAntigravityStreamToClaude(chunk []byte) []byte {
 
 	responseNode := gjson.ParseBytes(chunk)
 
+	// Check for response wrapper
+	if responseNode.Get("response").Exists() {
+		responseNode = responseNode.Get("response")
+	}
+
 	// Check if this is a complete message or delta
 	if responseNode.Get("candidates.0.content.parts").Exists() {
-		// This is a delta chunk
-		eventJSON := `{"type":"content_block_delta","index":0,"delta":{}}`
+		parts := responseNode.Get("candidates.0.content.parts")
+		if !parts.IsArray() || len(parts.Array()) == 0 {
+			return chunk
+		}
+
+		part := parts.Array()[0]
+
+		// Handle thinking/thought delta
+		if thought := part.Get("thought"); thought.Exists() && thought.Bool() {
+			eventJSON := `{"type":"content_block_delta","index":0,"delta":{}}`
+			thinkingText := part.Get("text").String()
+
+			deltaJSON := `{"type":"thinking_delta","thinking":""}`
+			deltaJSON, _ = sjson.Set(deltaJSON, "thinking", thinkingText)
+			eventJSON, _ = sjson.SetRaw(eventJSON, "delta", deltaJSON)
+
+			// Include signature if present
+			signature := part.Get("thoughtSignature").String()
+			if signature == "" {
+				signature = part.Get("thought_signature").String()
+			}
+			if signature != "" {
+				eventJSON, _ = sjson.Set(eventJSON, "signature", signature)
+			}
+
+			return []byte(eventJSON)
+		}
 
 		// Extract text delta
-		text := responseNode.Get("candidates.0.content.parts.0.text").String()
+		text := part.Get("text").String()
 		if text != "" {
+			eventJSON := `{"type":"content_block_delta","index":0,"delta":{}}`
 			deltaJSON := `{"type":"text_delta","text":""}`
 			deltaJSON, _ = sjson.Set(deltaJSON, "text", text)
 			eventJSON, _ = sjson.SetRaw(eventJSON, "delta", deltaJSON)
@@ -160,8 +230,9 @@ func TranslateAntigravityStreamToClaude(chunk []byte) []byte {
 		}
 
 		// Extract function call delta
-		functionCall := responseNode.Get("candidates.0.content.parts.0.functionCall")
+		functionCall := part.Get("functionCall")
 		if functionCall.Exists() {
+			eventJSON := `{"type":"content_block_delta","index":0,"delta":{}}`
 			deltaJSON := `{"type":"input_json_delta","partial_json":""}`
 			deltaJSON, _ = sjson.SetRaw(deltaJSON, "partial_json", functionCall.Raw)
 			eventJSON, _ = sjson.SetRaw(eventJSON, "delta", deltaJSON)

@@ -80,15 +80,15 @@ func (p *AntigravityProvider) Execute(ctx context.Context, req *providers.Execut
 		return nil, fmt.Errorf("account is required")
 	}
 
+	// Parse auth data to get access token and project ID
+	var authData map[string]interface{}
+	if err := json.Unmarshal([]byte(req.Account.AuthData), &authData); err != nil {
+		return nil, fmt.Errorf("failed to parse auth data: %w", err)
+	}
+
 	// Extract access token
 	accessToken := req.Token
 	if accessToken == "" {
-		// Try to extract from account auth data
-		var authData map[string]interface{}
-		if err := json.Unmarshal([]byte(req.Account.AuthData), &authData); err != nil {
-			return nil, fmt.Errorf("failed to parse auth data: %w", err)
-		}
-
 		token, ok := authData["access_token"].(string)
 		if !ok || token == "" {
 			return nil, fmt.Errorf("no access token found in account")
@@ -96,13 +96,22 @@ func (p *AntigravityProvider) Execute(ctx context.Context, req *providers.Execut
 		accessToken = token
 	}
 
+	// Extract project ID for antigravity request
+	projectID, _ := authData["project_id"].(string)
+
+	// Translate payload to antigravity format with project ID
+	translatedPayload := TranslateClaudeToAntigravityWithProject(req.Payload, req.Model, projectID)
+
+	// Debug log
+	fmt.Printf("[DEBUG] Translated payload: %s\n", string(translatedPayload))
+
 	// Get or create HTTP client for this proxy
 	httpClient := p.getHTTPClient(req.ProxyURL)
 
 	// Create executor request
 	execReq := &ExecuteRequest{
 		Model:       req.Model,
-		Payload:     req.Payload,
+		Payload:     translatedPayload,
 		Stream:      req.Stream,
 		AccessToken: accessToken,
 		HTTPClient:  httpClient,

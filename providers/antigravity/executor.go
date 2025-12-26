@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
+	"strings"
 	"time"
 )
 
@@ -31,34 +33,84 @@ type StreamHandler func(chunk []byte) error
 
 // Executor handles HTTP communication with Antigravity API
 type Executor struct {
-	baseURL string
+	baseURLs []string
 }
 
 // NewExecutor creates a new Executor instance
 func NewExecutor() *Executor {
 	return &Executor{
-		baseURL: BaseURL,
+		baseURLs: BaseURLs,
 	}
 }
 
-// Execute performs a non-streaming request to Antigravity API
+// Execute performs a non-streaming request to Antigravity API with fallback URLs
 func (e *Executor) Execute(ctx context.Context, req *ExecuteRequest) (*ExecuteResponse, error) {
-	endpoint := e.baseURL + EndpointGenerate
-	if req.Stream {
-		endpoint = e.baseURL + EndpointStream
+	var lastErr error
+	var lastResp *ExecuteResponse
+
+	for _, baseURL := range e.baseURLs {
+		endpoint := baseURL + EndpointGenerate
+		// Claude models always use streaming endpoint with alt=sse
+		if req.Stream || IsClaudeModel(req.Model) {
+			endpoint = baseURL + EndpointStream + "?alt=sse"
+		}
+
+		fmt.Printf("[DEBUG] Model: %s, IsClaudeModel: %v, Endpoint: %s\n", req.Model, IsClaudeModel(req.Model), endpoint)
+
+		resp, err := e.executeRequest(ctx, req, endpoint)
+		if err == nil && resp.StatusCode >= 200 && resp.StatusCode < 300 {
+			return resp, nil
+		}
+
+		lastResp = resp
+		lastErr = err
+
+		if resp != nil && resp.StatusCode == 401 {
+			return resp, err
+		}
 	}
 
+	if lastResp != nil {
+		return lastResp, lastErr
+	}
+	return nil, lastErr
+}
+
+// resolveHost extracts host from URL for Host header
+func resolveHost(base string) string {
+	parsed, err := url.Parse(base)
+	if err != nil {
+		return ""
+	}
+	if parsed.Host != "" {
+		return parsed.Host
+	}
+	return strings.TrimPrefix(strings.TrimPrefix(base, "https://"), "http://")
+}
+
+func (e *Executor) executeRequest(ctx context.Context, req *ExecuteRequest, endpoint string) (*ExecuteResponse, error) {
 	httpReq, err := http.NewRequestWithContext(ctx, "POST", endpoint, bytes.NewReader(req.Payload))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create HTTP request: %w", err)
 	}
 
-	// Set headers
-	httpReq.Header.Set("Content-Type", ContentType)
+	// Set headers exactly like reference
+	httpReq.Header.Set("Content-Type", "application/json")
 	httpReq.Header.Set("Authorization", "Bearer "+req.AccessToken)
 	httpReq.Header.Set("User-Agent", UserAgent)
 
-	// Execute request
+	// Stream uses text/event-stream, non-stream uses application/json
+	if req.Stream || IsClaudeModel(req.Model) {
+		httpReq.Header.Set("Accept", "text/event-stream")
+	} else {
+		httpReq.Header.Set("Accept", "application/json")
+	}
+
+	// Set Host header
+	if host := resolveHost(endpoint); host != "" {
+		httpReq.Host = host
+	}
+
 	startTime := time.Now()
 	httpResp, err := req.HTTPClient.Do(httpReq)
 	latency := time.Since(startTime).Milliseconds()
@@ -73,7 +125,6 @@ func (e *Executor) Execute(ctx context.Context, req *ExecuteRequest) (*ExecuteRe
 	}
 	defer httpResp.Body.Close()
 
-	// Read response body
 	body, err := io.ReadAll(httpResp.Body)
 	if err != nil {
 		return &ExecuteResponse{
@@ -84,8 +135,8 @@ func (e *Executor) Execute(ctx context.Context, req *ExecuteRequest) (*ExecuteRe
 		}, err
 	}
 
-	// Check for HTTP errors
 	if httpResp.StatusCode < 200 || httpResp.StatusCode >= 300 {
+		fmt.Printf("[DEBUG] Error response: %s\n", string(body))
 		return &ExecuteResponse{
 			StatusCode: httpResp.StatusCode,
 			Body:       body,
@@ -102,22 +153,44 @@ func (e *Executor) Execute(ctx context.Context, req *ExecuteRequest) (*ExecuteRe
 	}, nil
 }
 
-// ExecuteStream performs a streaming request to Antigravity API
+// ExecuteStream performs a streaming request to Antigravity API with fallback URLs
 func (e *Executor) ExecuteStream(ctx context.Context, req *ExecuteRequest, handler StreamHandler) (*ExecuteResponse, error) {
-	endpoint := e.baseURL + EndpointStream
+	var lastErr error
+	var lastResp *ExecuteResponse
 
+	for _, baseURL := range e.baseURLs {
+		endpoint := baseURL + EndpointStream + "?alt=sse"
+
+		resp, err := e.executeStreamRequest(ctx, req, endpoint, handler)
+		if err == nil && resp.StatusCode >= 200 && resp.StatusCode < 300 {
+			return resp, nil
+		}
+
+		lastResp = resp
+		lastErr = err
+
+		if resp != nil && resp.StatusCode == 401 {
+			return resp, err
+		}
+	}
+
+	if lastResp != nil {
+		return lastResp, lastErr
+	}
+	return nil, lastErr
+}
+
+func (e *Executor) executeStreamRequest(ctx context.Context, req *ExecuteRequest, endpoint string, handler StreamHandler) (*ExecuteResponse, error) {
 	httpReq, err := http.NewRequestWithContext(ctx, "POST", endpoint, bytes.NewReader(req.Payload))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create HTTP request: %w", err)
 	}
 
-	// Set headers
 	httpReq.Header.Set("Content-Type", ContentType)
 	httpReq.Header.Set("Authorization", "Bearer "+req.AccessToken)
 	httpReq.Header.Set("User-Agent", UserAgent)
 	httpReq.Header.Set("Accept", "text/event-stream")
 
-	// Execute request
 	startTime := time.Now()
 	httpResp, err := req.HTTPClient.Do(httpReq)
 	latency := time.Since(startTime).Milliseconds()
@@ -132,7 +205,6 @@ func (e *Executor) ExecuteStream(ctx context.Context, req *ExecuteRequest, handl
 	}
 	defer httpResp.Body.Close()
 
-	// Check for HTTP errors before streaming
 	if httpResp.StatusCode < 200 || httpResp.StatusCode >= 300 {
 		body, _ := io.ReadAll(httpResp.Body)
 		return &ExecuteResponse{
@@ -143,7 +215,6 @@ func (e *Executor) ExecuteStream(ctx context.Context, req *ExecuteRequest, handl
 		}, fmt.Errorf("upstream error: status %d", httpResp.StatusCode)
 	}
 
-	// Process streaming response
 	reader := NewSSEReader(httpResp.Body)
 	for {
 		event, err := reader.ReadEvent()
@@ -159,7 +230,6 @@ func (e *Executor) ExecuteStream(ctx context.Context, req *ExecuteRequest, handl
 			}, err
 		}
 
-		// Call handler for each event
 		if err := handler(event.Data); err != nil {
 			return &ExecuteResponse{
 				StatusCode: httpResp.StatusCode,
