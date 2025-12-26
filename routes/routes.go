@@ -19,6 +19,7 @@ func SetupRoutes(
 	authHandler *handlers.AuthHandler,
 	userHandler *handlers.UserHandler,
 	apiKeyHandler *handlers.APIKeyHandler,
+	oauthHandler *handlers.OAuthHandler,
 	authMiddleware *middleware.AuthMiddleware,
 ) {
 	// Apply global auth extraction
@@ -108,6 +109,19 @@ func SetupRoutes(
 			mappings.POST("", modelMappingHandler.Create)
 			mappings.PUT("/:alias", modelMappingHandler.Update)
 			mappings.DELETE("/:alias", modelMappingHandler.Delete)
+		}
+
+		// OAuth endpoints
+		oauth := api.Group("/oauth")
+		{
+			// Public endpoints
+			oauth.GET("/providers", oauthHandler.GetProviders)
+			oauth.GET("/callback", oauthHandler.Callback)
+
+			// Protected endpoints (admin + user)
+			oauth.POST("/init", middleware.RequireAccountAccess(), oauthHandler.InitFlow)
+			oauth.POST("/exchange", middleware.RequireAccountAccess(), oauthHandler.Exchange)
+			oauth.POST("/refresh", middleware.RequireAccountAccess(), oauthHandler.RefreshToken)
 		}
 	}
 }
