@@ -3,17 +3,21 @@ package services
 import (
 	"aigateway/models"
 	"aigateway/repositories"
+
+	"github.com/redis/go-redis/v9"
 )
 
 // ProxyHealthService handles proxy health monitoring and status updates
 type ProxyHealthService struct {
-	repo *repositories.ProxyRepository
+	repo  *repositories.ProxyRepository
+	redis *redis.Client
 }
 
 // NewProxyHealthService creates a new proxy health service instance
-func NewProxyHealthService(repo *repositories.ProxyRepository) *ProxyHealthService {
+func NewProxyHealthService(repo *repositories.ProxyRepository, redis *redis.Client) *ProxyHealthService {
 	return &ProxyHealthService{
-		repo: repo,
+		repo:  repo,
+		redis: redis,
 	}
 }
 
@@ -61,5 +65,5 @@ func (s *ProxyHealthService) GetLatency(proxyID int) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	return proxy.LatencyMs, nil
+	return proxy.AvgLatencyMs, nil
 }
