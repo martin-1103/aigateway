@@ -2,10 +2,15 @@ package services
 
 import (
 	"aigateway/models"
+	"aigateway/providers/antigravity"
 	"aigateway/repositories"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
+	"net/url"
+	"strings"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -16,15 +21,27 @@ type TokenCache struct {
 	ExpiresAt   time.Time `json:"expires_at"`
 }
 
+type TokenResponse struct {
+	AccessToken  string `json:"access_token"`
+	ExpiresIn    int    `json:"expires_in"`
+	TokenType    string `json:"token_type"`
+	Scope        string `json:"scope"`
+	RefreshToken string `json:"refresh_token,omitempty"`
+}
+
 type OAuthService struct {
-	redis *redis.Client
-	repo  *repositories.AccountRepository
+	redis      *redis.Client
+	repo       *repositories.AccountRepository
+	httpClient *http.Client
 }
 
 func NewOAuthService(redis *redis.Client, repo *repositories.AccountRepository) *OAuthService {
 	return &OAuthService{
 		redis: redis,
 		repo:  repo,
+		httpClient: &http.Client{
+			Timeout: 30 * time.Second,
+		},
 	}
 }
 
@@ -36,7 +53,8 @@ func (s *OAuthService) GetAccessToken(account *models.Account) (string, error) {
 	if err == nil && cached != "" {
 		var token TokenCache
 		if json.Unmarshal([]byte(cached), &token) == nil {
-			if time.Now().Add(5 * time.Minute).Before(token.ExpiresAt) {
+			// Use UTC for consistent timezone comparison
+			if time.Now().UTC().Add(antigravity.RefreshSkew).Before(token.ExpiresAt.UTC()) {
 				return token.AccessToken, nil
 			}
 		}
@@ -47,20 +65,46 @@ func (s *OAuthService) GetAccessToken(account *models.Account) (string, error) {
 		return "", err
 	}
 
-	accessToken, ok := authData["access_token"].(string)
-	if !ok || accessToken == "" {
-		return "", fmt.Errorf("no access token in auth data")
-	}
+	accessToken, _ := authData["access_token"].(string)
+	// Default expiry: 1 hour from now in UTC
+	expiresAt := time.Now().UTC().Add(3600 * time.Second)
 
-	expiresAt := time.Now().Add(3600 * time.Second)
 	if exp, ok := authData["expires_at"].(string); ok {
 		if t, err := time.Parse(time.RFC3339, exp); err == nil {
-			expiresAt = t
+			// Convert to UTC for consistent comparison
+			expiresAt = t.UTC()
 		}
 	}
 
-	if time.Now().Add(5 * time.Minute).After(expiresAt) {
-		return "", fmt.Errorf("token expired, refresh needed")
+	// Use UTC for consistent timezone comparison
+	if time.Now().UTC().Add(antigravity.RefreshSkew).After(expiresAt) {
+		refreshToken, ok := authData["refresh_token"].(string)
+		if !ok || refreshToken == "" {
+			return "", fmt.Errorf("token expired and no refresh token available")
+		}
+
+		newAccessToken, newExpiresAt, err := s.refreshToken(account.ProviderID, refreshToken)
+		if err != nil {
+			return "", fmt.Errorf("token refresh failed: %w", err)
+		}
+
+		authData["access_token"] = newAccessToken
+		authData["expires_at"] = newExpiresAt.Format(time.RFC3339)
+
+		updatedAuth, _ := json.Marshal(authData)
+		account.AuthData = string(updatedAuth)
+		if err := s.repo.UpdateAuthData(account.ID, string(updatedAuth)); err != nil {
+			return "", fmt.Errorf("failed to save refreshed token: %w", err)
+		}
+
+		accessToken = newAccessToken
+		expiresAt = newExpiresAt
+
+		s.redis.Del(ctx, cacheKey)
+	}
+
+	if accessToken == "" {
+		return "", fmt.Errorf("no access token available")
 	}
 
 	tokenCache := TokenCache{
@@ -71,6 +115,55 @@ func (s *OAuthService) GetAccessToken(account *models.Account) (string, error) {
 	s.redis.Set(ctx, cacheKey, cacheData, time.Until(expiresAt))
 
 	return accessToken, nil
+}
+
+func (s *OAuthService) refreshToken(providerID string, refreshToken string) (string, time.Time, error) {
+	var clientID, clientSecret, tokenURL string
+
+	switch providerID {
+	case "antigravity":
+		clientID = antigravity.OAuthClientID
+		clientSecret = antigravity.OAuthClientSecret
+		tokenURL = antigravity.OAuthTokenURL
+	default:
+		return "", time.Time{}, fmt.Errorf("token refresh not supported for provider: %s", providerID)
+	}
+
+	data := url.Values{}
+	data.Set("client_id", clientID)
+	data.Set("client_secret", clientSecret)
+	data.Set("refresh_token", refreshToken)
+	data.Set("grant_type", "refresh_token")
+
+	req, err := http.NewRequest("POST", tokenURL, strings.NewReader(data.Encode()))
+	if err != nil {
+		return "", time.Time{}, err
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	resp, err := s.httpClient.Do(req)
+	if err != nil {
+		return "", time.Time{}, err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", time.Time{}, err
+	}
+
+	if resp.StatusCode != 200 {
+		return "", time.Time{}, fmt.Errorf("token refresh failed: %s", string(body))
+	}
+
+	var tokenResp TokenResponse
+	if err := json.Unmarshal(body, &tokenResp); err != nil {
+		return "", time.Time{}, err
+	}
+
+	// Always use UTC for consistent timezone handling
+	expiresAt := time.Now().UTC().Add(time.Duration(tokenResp.ExpiresIn) * time.Second)
+	return tokenResp.AccessToken, expiresAt, nil
 }
 
 func (s *OAuthService) InvalidateCache(account *models.Account) error {

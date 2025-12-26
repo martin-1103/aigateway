@@ -35,8 +35,8 @@ func NewExecutorService(
 
 // Execute processes a request through the complete pipeline: route → account → proxy → auth → execute → stats
 func (s *ExecutorService) Execute(ctx context.Context, req Request) (Response, error) {
-	// Step 1: Route to appropriate provider
-	provider, err := s.routerService.Route(req.Model)
+	// Step 1: Route to appropriate provider (may resolve alias to actual model)
+	provider, resolvedModel, err := s.routerService.Route(req.Model)
 	if err != nil {
 		return Response{}, err
 	}
@@ -44,7 +44,7 @@ func (s *ExecutorService) Execute(ctx context.Context, req Request) (Response, e
 	providerID := provider.ID()
 
 	// Step 2: Select account using round-robin
-	account, err := s.accountService.SelectAccount(providerID, req.Model)
+	account, err := s.accountService.SelectAccount(providerID, resolvedModel)
 	if err != nil {
 		return Response{}, fmt.Errorf("failed to select account: %w", err)
 	}
@@ -60,9 +60,9 @@ func (s *ExecutorService) Execute(ctx context.Context, req Request) (Response, e
 		return Response{}, fmt.Errorf("failed to get access token: %w", err)
 	}
 
-	// Step 5: Execute provider request
+	// Step 5: Execute provider request (use resolved model name)
 	executeReq := &providers.ExecuteRequest{
-		Model:    req.Model,
+		Model:    resolvedModel,
 		Payload:  req.Payload,
 		Stream:   req.Stream,
 		Account:  account,
@@ -86,7 +86,7 @@ func (s *ExecutorService) Execute(ctx context.Context, req Request) (Response, e
 		&account.ID,
 		account.ProxyID,
 		providerIDPtr,
-		req.Model,
+		resolvedModel,
 		statusCode,
 		latencyMs,
 	)
