@@ -1,7 +1,6 @@
 package main
 
 import (
-	"aigateway/auth"
 	"aigateway/config"
 	"aigateway/database"
 	"aigateway/handlers"
@@ -47,34 +46,15 @@ func main() {
 	accountService := services.NewAccountService(accountRepo, redis)
 	proxyService := services.NewProxyService(proxyRepo, accountRepo)
 	oauthService := services.NewOAuthService(redis, accountRepo)
-	translatorService := services.NewTranslatorService()
-	httpClientService := services.NewHTTPClientService()
 
 	proxyHealthService := services.NewProxyHealthService(proxyRepo, redis)
 	statsTrackerService := services.NewStatsTrackerService(statsRepo, proxyRepo, redis, proxyHealthService)
 	statsQueryService := services.NewStatsQueryService(statsRepo)
 
-	// Initialize auth strategies
-	oauthStrategy := auth.NewOAuthStrategy(redis, accountRepo)
-	apiKeyStrategy := auth.NewAPIKeyStrategy()
-	bearerStrategy := auth.NewBearerStrategy(redis)
-
 	// Initialize providers
-	antigravityProvider := antigravity.NewAntigravityProvider(
-		cfg.Providers["antigravity"],
-		httpClientService,
-		oauthStrategy,
-	)
-	openaiProvider := openai.NewOpenAIProvider(
-		cfg.Providers["openai"],
-		httpClientService,
-		apiKeyStrategy,
-	)
-	glmProvider := glm.NewGLMProvider(
-		cfg.Providers["glm"],
-		httpClientService,
-		apiKeyStrategy,
-	)
+	antigravityProvider := antigravity.NewAntigravityProvider()
+	openaiProvider := openai.NewOpenAIProvider()
+	glmProvider := glm.NewProvider()
 
 	// Initialize provider registry
 	registry := providers.NewRegistry()

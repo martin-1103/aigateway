@@ -1,7 +1,6 @@
 package antigravity
 
 import (
-	"aigateway/models"
 	"aigateway/providers"
 	"context"
 	"encoding/json"
@@ -13,16 +12,14 @@ import (
 
 // AntigravityProvider implements the Provider interface for Antigravity (Google Cloud Code) API
 type AntigravityProvider struct {
-	config      *models.Provider
 	httpClients map[string]*http.Client
 	clientMu    sync.RWMutex
 	executor    *Executor
 }
 
 // NewAntigravityProvider creates a new Antigravity provider instance
-func NewAntigravityProvider(cfg *models.Provider) *AntigravityProvider {
+func NewAntigravityProvider() *AntigravityProvider {
 	return &AntigravityProvider{
-		config:      cfg,
 		httpClients: make(map[string]*http.Client),
 		executor:    NewExecutor(),
 	}
@@ -35,9 +32,6 @@ func (p *AntigravityProvider) ID() string {
 
 // Name returns the human-readable provider name
 func (p *AntigravityProvider) Name() string {
-	if p.config != nil && p.config.Name != "" {
-		return p.config.Name
-	}
 	return "Antigravity"
 }
 
