@@ -3,7 +3,6 @@ package services
 import (
 	"aigateway/models"
 	"aigateway/repositories"
-	"fmt"
 	"sync"
 )
 

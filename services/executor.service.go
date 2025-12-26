@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"aigateway/models"
 	"aigateway/providers"
 )
 
