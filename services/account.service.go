@@ -61,3 +61,7 @@ func (s *AccountService) Update(account *models.Account) error {
 func (s *AccountService) Delete(id string) error {
 	return s.repo.Delete(id)
 }
+
+func (s *AccountService) ListByCreator(creatorID string, limit, offset int) ([]*models.Account, int64, error) {
+	return s.repo.ListByCreator(creatorID, limit, offset)
+}

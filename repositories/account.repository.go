@@ -113,3 +113,19 @@ func (r *AccountRepository) GetExpiringAccounts(providerID string, withinDuratio
 		Find(&accounts).Error
 	return accounts, err
 }
+
+func (r *AccountRepository) ListByCreator(creatorID string, limit, offset int) ([]*models.Account, int64, error) {
+	var accounts []*models.Account
+	var total int64
+
+	if err := r.db.Model(&models.Account{}).Where("created_by = ?", creatorID).Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	err := r.db.Preload("Provider").Preload("Proxy").
+		Where("created_by = ?", creatorID).
+		Limit(limit).Offset(offset).
+		Find(&accounts).Error
+
+	return accounts, total, err
+}

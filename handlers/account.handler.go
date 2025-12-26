@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"aigateway/middleware"
 	"aigateway/models"
 	"aigateway/services"
 	"net/http"
@@ -19,10 +20,21 @@ func NewAccountHandler(service *services.AccountService) *AccountHandler {
 }
 
 func (h *AccountHandler) List(c *gin.Context) {
+	user := middleware.GetCurrentUser(c)
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 
-	accounts, total, err := h.service.List(limit, offset)
+	var accounts []*models.Account
+	var total int64
+	var err error
+
+	// Provider can only see accounts they created
+	if user != nil && user.Role == models.RoleProvider {
+		accounts, total, err = h.service.ListByCreator(user.ID, limit, offset)
+	} else {
+		accounts, total, err = h.service.List(limit, offset)
+	}
+
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -37,17 +49,29 @@ func (h *AccountHandler) List(c *gin.Context) {
 }
 
 func (h *AccountHandler) Get(c *gin.Context) {
+	user := middleware.GetCurrentUser(c)
 	id := c.Param("id")
+
 	account, err := h.service.GetByID(id)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "account not found"})
 		return
 	}
 
+	// Provider can only see accounts they created
+	if user != nil && user.Role == models.RoleProvider {
+		if account.CreatedBy == nil || *account.CreatedBy != user.ID {
+			c.JSON(http.StatusForbidden, gin.H{"error": "access denied"})
+			return
+		}
+	}
+
 	c.JSON(http.StatusOK, account)
 }
 
 func (h *AccountHandler) Create(c *gin.Context) {
+	user := middleware.GetCurrentUser(c)
+
 	var account models.Account
 	if err := c.ShouldBindJSON(&account); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -55,6 +79,12 @@ func (h *AccountHandler) Create(c *gin.Context) {
 	}
 
 	account.ID = uuid.New().String()
+
+	// Set creator
+	if user != nil {
+		account.CreatedBy = &user.ID
+	}
+
 	if err := h.service.Create(&account); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -64,7 +94,24 @@ func (h *AccountHandler) Create(c *gin.Context) {
 }
 
 func (h *AccountHandler) Update(c *gin.Context) {
+	user := middleware.GetCurrentUser(c)
 	id := c.Param("id")
+
+	// Get existing account to check ownership
+	existing, err := h.service.GetByID(id)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "account not found"})
+		return
+	}
+
+	// Provider can only update accounts they created
+	if user != nil && user.Role == models.RoleProvider {
+		if existing.CreatedBy == nil || *existing.CreatedBy != user.ID {
+			c.JSON(http.StatusForbidden, gin.H{"error": "access denied"})
+			return
+		}
+	}
+
 	var account models.Account
 	if err := c.ShouldBindJSON(&account); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -72,6 +119,8 @@ func (h *AccountHandler) Update(c *gin.Context) {
 	}
 
 	account.ID = id
+	account.CreatedBy = existing.CreatedBy // Preserve creator
+
 	if err := h.service.Update(&account); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -81,7 +130,15 @@ func (h *AccountHandler) Update(c *gin.Context) {
 }
 
 func (h *AccountHandler) Delete(c *gin.Context) {
+	user := middleware.GetCurrentUser(c)
 	id := c.Param("id")
+
+	// Only admin can delete (provider cannot delete per design)
+	if user != nil && user.Role != models.RoleAdmin {
+		c.JSON(http.StatusForbidden, gin.H{"error": "only admin can delete accounts"})
+		return
+	}
+
 	if err := h.service.Delete(id); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
