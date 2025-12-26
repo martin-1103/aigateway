@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"aigateway/models"
 	"aigateway/providers"
 )
 
@@ -50,12 +49,12 @@ func NewRouterService(
 
 // Route determines the appropriate provider for a given model
 func (s *RouterService) Route(model string) (providers.Provider, error) {
-	providerModel, err := s.registry.GetByModel(model)
+	provider, err := s.registry.GetByModel(model)
 	if err != nil {
 		return nil, fmt.Errorf("failed to route model %s: %w", model, err)
 	}
 
-	return providerModel.Implementation, nil
+	return provider, nil
 }
 
 // Execute orchestrates the complete request pipeline: route → account select → proxy assign → auth → provider execute → stats
@@ -132,16 +131,16 @@ func (s *RouterService) Execute(ctx context.Context, req Request) (Response, err
 
 // ListProviders returns all registered providers
 func (s *RouterService) ListProviders() []ProviderInfo {
-	providers := s.registry.ListActive()
-	result := make([]ProviderInfo, 0, len(providers))
+	providerList := s.registry.ListActive()
+	result := make([]ProviderInfo, 0, len(providerList))
 
-	for _, p := range providers {
+	for _, p := range providerList {
 		result = append(result, ProviderInfo{
-			ID:       p.ID,
-			Name:     p.Name,
-			BaseURL:  p.BaseURL,
-			AuthType: string(p.AuthType),
-			IsActive: p.IsActive,
+			ID:       p.ID(),
+			Name:     p.Name(),
+			BaseURL:  "",
+			AuthType: p.AuthStrategy(),
+			IsActive: true,
 		})
 	}
 
