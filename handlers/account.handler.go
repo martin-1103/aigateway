@@ -28,8 +28,8 @@ func (h *AccountHandler) List(c *gin.Context) {
 	var total int64
 	var err error
 
-	// Provider can only see accounts they created
-	if user != nil && user.Role == models.RoleProvider {
+	// Provider and User can only see accounts they created
+	if user != nil && (user.Role == models.RoleProvider || user.Role == models.RoleUser) {
 		accounts, total, err = h.service.ListByCreator(user.ID, limit, offset)
 	} else {
 		accounts, total, err = h.service.List(limit, offset)
@@ -58,8 +58,8 @@ func (h *AccountHandler) Get(c *gin.Context) {
 		return
 	}
 
-	// Provider can only see accounts they created
-	if user != nil && user.Role == models.RoleProvider {
+	// Provider and User can only see accounts they created
+	if user != nil && (user.Role == models.RoleProvider || user.Role == models.RoleUser) {
 		if account.CreatedBy == nil || *account.CreatedBy != user.ID {
 			c.JSON(http.StatusForbidden, gin.H{"error": "access denied"})
 			return
@@ -104,8 +104,8 @@ func (h *AccountHandler) Update(c *gin.Context) {
 		return
 	}
 
-	// Provider can only update accounts they created
-	if user != nil && user.Role == models.RoleProvider {
+	// Provider and User can only update accounts they created
+	if user != nil && (user.Role == models.RoleProvider || user.Role == models.RoleUser) {
 		if existing.CreatedBy == nil || *existing.CreatedBy != user.ID {
 			c.JSON(http.StatusForbidden, gin.H{"error": "access denied"})
 			return
@@ -133,10 +133,23 @@ func (h *AccountHandler) Delete(c *gin.Context) {
 	user := middleware.GetCurrentUser(c)
 	id := c.Param("id")
 
-	// Only admin can delete (provider cannot delete per design)
-	if user != nil && user.Role != models.RoleAdmin {
-		c.JSON(http.StatusForbidden, gin.H{"error": "only admin can delete accounts"})
+	// Provider cannot delete accounts
+	if user != nil && user.Role == models.RoleProvider {
+		c.JSON(http.StatusForbidden, gin.H{"error": "provider cannot delete accounts"})
 		return
+	}
+
+	// User can only delete their own accounts
+	if user != nil && user.Role == models.RoleUser {
+		existing, err := h.service.GetByID(id)
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "account not found"})
+			return
+		}
+		if existing.CreatedBy == nil || *existing.CreatedBy != user.ID {
+			c.JSON(http.StatusForbidden, gin.H{"error": "access denied"})
+			return
+		}
 	}
 
 	if err := h.service.Delete(id); err != nil {

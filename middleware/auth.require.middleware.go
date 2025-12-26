@@ -54,5 +54,5 @@ func RequireAIAccess() gin.HandlerFunc {
 }
 
 func RequireAccountAccess() gin.HandlerFunc {
-	return RequireRole(models.RoleAdmin, models.RoleProvider)
+	return RequireRole(models.RoleAdmin, models.RoleProvider, models.RoleUser)
 }
