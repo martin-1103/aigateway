@@ -71,8 +71,8 @@ func (s *StatsQueryService) GetSuccessRate(proxyID int, days int) (float64, erro
 	var successfulRequests int64
 
 	for _, stat := range stats {
-		totalRequests += stat.TotalRequests
-		successfulRequests += stat.SuccessfulRequests
+		totalRequests += int64(stat.RequestCount)
+		successfulRequests += int64(stat.SuccessCount)
 	}
 
 	if totalRequests == 0 {
@@ -94,16 +94,16 @@ func (s *StatsQueryService) GetAverageLatency(proxyID int, days int) (float64, e
 	}
 
 	var totalLatency int64
-	var count int64
+	var totalRequests int64
 
 	for _, stat := range stats {
-		totalLatency += int64(stat.AverageLatencyMs) * stat.TotalRequests
-		count += stat.TotalRequests
+		totalLatency += stat.TotalLatencyMs
+		totalRequests += int64(stat.RequestCount)
 	}
 
-	if count == 0 {
+	if totalRequests == 0 {
 		return 0, nil
 	}
 
-	return float64(totalLatency) / float64(count), nil
+	return float64(totalLatency) / float64(totalRequests), nil
 }
