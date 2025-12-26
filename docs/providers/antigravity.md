@@ -19,18 +19,29 @@ Google's internal AI API gateway that provides access to Gemini models and Claud
 
 ## Supported Models
 
-- `gemini-claude-sonnet-4-5`
-- `gemini-claude-sonnet-3-5`
-- `gemini-pro`
-- `gemini-pro-vision`
-- `claude-sonnet-4-5` (routed to Antigravity)
-- `claude-sonnet-3-5` (routed to Antigravity)
+### Gemini 2.5 Series
+- `gemini-2.5-flash` - Fast multimodal model with thinking support (0-24K budget)
+- `gemini-2.5-flash-lite` - Lightweight version with thinking support (0-24K budget)
+- `gemini-2.5-pro` - Most capable Gemini 2.5 model with thinking support (0-24K budget)
+- `gemini-2.5-computer-use-preview-10-2025` - Computer use preview model
+
+### Gemini 3 Series
+- `gemini-3-pro-preview` - Next-gen flagship with thinking levels (128-32K budget, levels: low/high)
+- `gemini-3-pro-image-preview` - Image generation with thinking levels (128-32K budget, levels: low/high)
+- `gemini-3-flash-preview` - Fast next-gen with thinking levels (128-32K budget, levels: minimal/low/medium/high)
+
+### Claude via Antigravity
+- `gemini-claude-sonnet-4-5` - Claude Sonnet 4.5 without thinking
+- `gemini-claude-sonnet-4-5-thinking` - Claude Sonnet 4.5 with extended thinking (1K-200K budget, max 64K tokens)
+- `gemini-claude-opus-4-5` - Claude Opus 4.5 without thinking
+- `gemini-claude-opus-4-5-thinking` - Claude Opus 4.5 with extended thinking (1K-200K budget, max 64K tokens)
 
 ## Model Routing
 
 Models are automatically routed to Antigravity based on these prefixes:
-- `gemini-*` → Antigravity
-- `claude-sonnet-*` → Antigravity
+- `gemini-2.5-*` → Antigravity (Gemini 2.5 series)
+- `gemini-3-*` → Antigravity (Gemini 3 series)
+- `gemini-claude-*` → Antigravity (Claude via Google infrastructure)
 
 ## Configuration
 
@@ -127,7 +138,7 @@ VALUES (
   'https://cloudcode-pa.googleapis.com',
   'oauth',
   'oauth',
-  '["gemini-claude-sonnet-4-5", "gemini-pro"]',
+  '["gemini-2.5-flash", "gemini-2.5-pro", "gemini-3-pro-preview", "gemini-3-flash-preview", "gemini-claude-sonnet-4-5", "gemini-claude-opus-4-5"]',
   true
 );
 ```
@@ -157,14 +168,41 @@ curl -X POST http://localhost:8080/api/v1/accounts \
 ### Step 4: Test the Integration
 
 ```bash
+# Test with Gemini 2.5 Flash
 curl -X POST http://localhost:8080/v1/messages \
   -H "Content-Type: application/json" \
   -d '{
-    "model": "claude-sonnet-4-5",
+    "model": "gemini-2.5-flash",
     "messages": [
       {"role": "user", "content": "test"}
     ],
     "max_tokens": 100
+  }'
+
+# Test with Claude Sonnet 4.5 via Antigravity
+curl -X POST http://localhost:8080/v1/messages \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "gemini-claude-sonnet-4-5",
+    "messages": [
+      {"role": "user", "content": "test"}
+    ],
+    "max_tokens": 100
+  }'
+
+# Test with Gemini 3 Pro with thinking
+curl -X POST http://localhost:8080/v1/messages \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "gemini-3-pro-preview",
+    "messages": [
+      {"role": "user", "content": "Explain quantum computing"}
+    ],
+    "max_tokens": 1000,
+    "thinking": {
+      "type": "enabled",
+      "budget": 1000
+    }
   }'
 ```
 

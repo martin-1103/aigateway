@@ -35,7 +35,7 @@ Client Request (OpenAI/Anthropic format)
   → Client Response
 ```
 
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for detailed architecture documentation.
+See **[Documentation](docs/)** for complete guides.
 
 ## Quick Start
 
@@ -195,12 +195,13 @@ AIGateway automatically routes requests based on model name prefixes:
 
 | Model Prefix | Provider | Example Models |
 |--------------|----------|----------------|
-| `gemini-*` | Antigravity | gemini-claude-sonnet-4-5, gemini-pro |
-| `claude-sonnet-*` | Antigravity | claude-sonnet-4-5, claude-sonnet-3-5 |
+| `gemini-2.5-*` | Antigravity | gemini-2.5-flash, gemini-2.5-pro, gemini-2.5-flash-lite |
+| `gemini-3-*` | Antigravity | gemini-3-pro-preview, gemini-3-flash-preview |
+| `gemini-claude-*` | Antigravity | gemini-claude-sonnet-4-5, gemini-claude-opus-4-5 |
 | `gpt-*` | OpenAI | gpt-4, gpt-3.5-turbo |
 | `glm-*` | GLM | glm-4, glm-3-turbo |
 
-See [docs/PROVIDERS.md](docs/PROVIDERS.md) for complete provider documentation.
+See **[Provider Documentation](docs/providers/)** for detailed provider guides.
 
 ## Usage Examples
 
@@ -334,6 +335,32 @@ Fill-first strategy with persistent assignment:
 - Assignments stored in `accounts.proxy_id` and `accounts.proxy_url`
 - Automatic recalculation when proxies disabled/removed
 - Manual recalculation via `/api/v1/proxies/recalculate`
+
+## Documentation
+
+Complete documentation is available in the `/docs` directory:
+
+- **[Getting Started](docs/GETTING-STARTED.md)** - Installation and first steps
+- **[API Reference](docs/API.md)** - Complete API documentation
+- **[Documentation Index](docs/INDEX.md)** - Full documentation navigation
+
+### Architecture
+- [Overview](docs/architecture/README.md) - System design and patterns
+- [Components](docs/architecture/components.md) - Layer breakdown
+- [Database](docs/architecture/database.md) - Schema design
+- [Performance](docs/architecture/performance.md) - Optimization guide
+
+### Providers
+- [Overview](docs/providers/README.md) - All providers
+- [Antigravity](docs/providers/antigravity.md) - Google OAuth setup
+- [OpenAI](docs/providers/openai.md) - GPT models
+- [Adding Providers](docs/providers/adding-new-provider.md) - Integration guide
+
+### Operations
+- [Database Setup](docs/operations/database.md) - Installation and seeding
+- [Monitoring](docs/operations/monitoring.md) - Dashboards and alerts
+- [Troubleshooting](docs/operations/troubleshooting.md) - Common issues
+- [Security](docs/operations/security.md) - Best practices
 
 ## Project Structure
 
