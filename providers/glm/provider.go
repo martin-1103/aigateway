@@ -84,6 +84,34 @@ func (p *Provider) Execute(ctx context.Context, req *providers.ExecuteRequest) (
 	return resp, nil
 }
 
+// ExecuteStream performs a streaming API call to GLM
+func (p *Provider) ExecuteStream(ctx context.Context, req *providers.ExecuteRequest) (*providers.StreamResponse, error) {
+	if req == nil {
+		return nil, fmt.Errorf("execute request cannot be nil")
+	}
+
+	if req.Account == nil {
+		return nil, fmt.Errorf("account cannot be nil")
+	}
+
+	if req.Payload == nil {
+		return nil, fmt.Errorf("payload cannot be nil")
+	}
+
+	// Validate model is supported
+	if !p.isModelSupported(req.Model) {
+		return nil, fmt.Errorf("unsupported model: %s", req.Model)
+	}
+
+	// Execute streaming HTTP request to GLM API
+	return executeHTTPStream(ctx, req)
+}
+
+// SupportsStreaming indicates that GLM supports streaming
+func (p *Provider) SupportsStreaming() bool {
+	return true
+}
+
 // isModelSupported checks if the given model is in the supported models list
 func (p *Provider) isModelSupported(model string) bool {
 	for _, supported := range SupportedModels {
