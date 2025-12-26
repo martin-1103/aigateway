@@ -92,3 +92,49 @@ func (p *OpenAIProvider) Execute(ctx context.Context, req *providers.ExecuteRequ
 		ProxyURL: proxyURL,
 	})
 }
+
+// ExecuteStream performs a streaming API call to OpenAI
+func (p *OpenAIProvider) ExecuteStream(ctx context.Context, req *providers.ExecuteRequest) (*providers.StreamResponse, error) {
+	if req == nil {
+		return nil, fmt.Errorf("execute request cannot be nil")
+	}
+
+	if req.Account == nil {
+		return nil, fmt.Errorf("account cannot be nil")
+	}
+
+	// Extract API key from account auth data
+	var authData map[string]interface{}
+	if err := json.Unmarshal([]byte(req.Account.AuthData), &authData); err != nil {
+		return nil, fmt.Errorf("failed to parse auth data: %w", err)
+	}
+
+	apiKey, ok := authData["api_key"].(string)
+	if !ok || apiKey == "" {
+		if req.Token != "" {
+			apiKey = req.Token
+		} else {
+			return nil, fmt.Errorf("api_key not found in auth data")
+		}
+	}
+
+	// Determine proxy URL
+	proxyURL := req.ProxyURL
+	if proxyURL == "" && req.Account.ProxyURL != "" {
+		proxyURL = req.Account.ProxyURL
+	}
+
+	// Execute streaming HTTP request
+	return executeHTTPStream(ctx, &HTTPRequest{
+		Model:    req.Model,
+		Payload:  req.Payload,
+		Stream:   true,
+		APIKey:   apiKey,
+		ProxyURL: proxyURL,
+	})
+}
+
+// SupportsStreaming indicates that OpenAI supports streaming
+func (p *OpenAIProvider) SupportsStreaming() bool {
+	return true
+}
