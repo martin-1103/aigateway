@@ -95,3 +95,21 @@ func (r *AccountRepository) UpdateAuthData(id string, authData string) error {
 		Where("id = ?", id).
 		Update("auth_data", authData).Error
 }
+
+func (r *AccountRepository) UpdateAuthDataWithExpiry(id string, authData string, expiresAt time.Time) error {
+	return r.db.Model(&models.Account{}).
+		Where("id = ?", id).
+		Updates(map[string]interface{}{
+			"auth_data":  authData,
+			"expires_at": expiresAt,
+		}).Error
+}
+
+func (r *AccountRepository) GetExpiringAccounts(providerID string, withinDuration time.Duration) ([]*models.Account, error) {
+	var accounts []*models.Account
+	threshold := time.Now().Add(withinDuration)
+	err := r.db.Where("provider_id = ? AND is_active = ? AND expires_at IS NOT NULL AND expires_at < ?",
+		providerID, true, threshold).
+		Find(&accounts).Error
+	return accounts, err
+}
