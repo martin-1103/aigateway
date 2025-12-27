@@ -48,7 +48,7 @@ See **[Documentation](docs/)** for complete guides.
 ### Installation
 
 ```bash
-cd aigateway
+cd aigateway/backend
 
 # Install dependencies
 go mod download
@@ -57,12 +57,12 @@ go mod download
 vim config/config.yaml
 
 # Run the gateway
-go run cmd/main.go
+go run .
 ```
 
 ### Configuration
 
-Edit `config/config.yaml`:
+Edit `backend/config/config.yaml`:
 
 ```yaml
 server:
@@ -366,43 +366,24 @@ Complete documentation is available in the `/docs` directory:
 
 ```
 aigateway/
-├── cmd/main.go                      # Application entry point
-├── config/
-│   ├── config.go                   # Configuration loader
-│   └── config.yaml                 # YAML configuration
-├── database/
-│   ├── mysql.go                    # MySQL connection
-│   └── redis.go                    # Redis connection
-├── models/
-│   ├── provider.model.go           # Provider data model
-│   ├── account.model.go            # Account data model
-│   └── proxy.model.go              # Proxy + Stats data models
-├── providers/
-│   ├── provider.go                 # Provider interface
-│   └── registry.go                 # Provider registry + routing
-├── auth/
-│   ├── strategy.go                 # Auth strategy interface
-│   ├── oauth.strategy.go           # OAuth 2.0 implementation
-│   ├── apikey.strategy.go          # API Key implementation
-│   └── bearer.strategy.go          # Bearer token implementation
-├── repositories/
-│   ├── account.repository.go       # Account database operations
-│   ├── proxy.repository.go         # Proxy database operations
-│   └── stats.repository.go         # Statistics database operations
-├── services/
-│   ├── account.service.go          # Account round-robin logic
-│   ├── proxy.service.go            # Proxy assignment logic
-│   ├── oauth.service.go            # OAuth token management
-│   ├── translator.service.go       # Format translation
-│   ├── httpclient.service.go       # HTTP client pooling
-│   ├── stats.service.go            # Statistics tracking
-│   └── executor.service.go         # Request orchestration
-├── handlers/
-│   ├── proxy.handler.go            # Proxy endpoint handlers
-│   ├── account.handler.go          # Account CRUD handlers
-│   ├── proxy_mgmt.handler.go       # Proxy CRUD handlers
-│   └── stats.handler.go            # Statistics handlers
-└── routes/routes.go                 # Route definitions
+├── backend/              # Go API Gateway (module: aigateway-backend)
+│   ├── main.go           # Entry point
+│   ├── config/           # config.yaml location
+│   ├── internal/         # Private packages (config, database, utils)
+│   ├── handlers/         # HTTP handlers
+│   ├── services/         # Business logic
+│   ├── models/           # Data structures
+│   ├── repositories/     # Database operations
+│   ├── providers/        # AI provider implementations
+│   ├── auth/             # Authentication strategies
+│   ├── middleware/       # HTTP middleware
+│   └── routes/           # Route definitions
+├── frontend/             # React Dashboard (Vite + TypeScript)
+├── mcp-server/           # Python MCP Server
+├── docs/                 # Shared documentation
+│   ├── plans/            # Design documents
+│   └── api/              # OpenAPI specs
+└── scripts/              # Shared scripts
 ```
 
 ## Adding a New Provider
@@ -428,7 +409,7 @@ VALUES (
 
 ### 2. Update Model Routing
 
-Edit `providers/registry.go` in the `routeModel()` function:
+Edit `backend/providers/registry.go` in the `routeModel()` function:
 
 ```go
 func (r *Registry) routeModel(model string) string {
@@ -444,7 +425,7 @@ func (r *Registry) routeModel(model string) string {
 
 ### 3. Create Format Translator (if needed)
 
-If the provider uses a non-standard format, add translation logic in `services/translator.service.go`:
+If the provider uses a non-standard format, add translation logic in `backend/services/translator.service.go`:
 
 ```go
 func (s *TranslatorService) ClaudeToNewProvider(payload []byte, model string) []byte {
@@ -489,6 +470,8 @@ curl -X POST http://localhost:8080/v1/messages \
 ### Running Tests
 
 ```bash
+cd backend
+
 # Run all tests
 go test ./...
 
@@ -502,11 +485,13 @@ go test -cover ./...
 ### Building for Production
 
 ```bash
+cd backend
+
 # Build binary
-go build -o aigateway cmd/main.go
+go build -o aigateway.exe .
 
 # Run production binary
-./aigateway
+./aigateway.exe
 ```
 
 ### Docker Deployment
@@ -514,9 +499,9 @@ go build -o aigateway cmd/main.go
 ```dockerfile
 FROM golang:1.21-alpine AS builder
 WORKDIR /app
-COPY . .
+COPY backend/ .
 RUN go mod download
-RUN go build -o aigateway cmd/main.go
+RUN go build -o aigateway .
 
 FROM alpine:latest
 WORKDIR /root/

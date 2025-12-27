@@ -1,8 +1,31 @@
+# Binaries
+*.exe
+*.exe~
+
+# Logs
+*.log
 
 # Git worktrees
 worktrees/
+
+# Backend
+backend/aigateway.exe
+backend/config/config.yaml
 
 # Frontend
 frontend/node_modules/
 frontend/dist/
 frontend/.env.local
+
+# MCP Server
+mcp-server/.env
+mcp-server/__pycache__/
+mcp-server/.venv/
+mcp-server/venv/
+
+# IDE
+.idea/
+.vscode/
+
+# Auto Claude data directory
+.auto-claude/
