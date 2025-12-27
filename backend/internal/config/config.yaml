@@ -1,0 +1,50 @@
+server:
+  host: "0.0.0.0"
+  port: 8088
+
+database:
+  host: "localhost"
+  port: 3306
+  user: "root"
+  password: ""
+  database: "aigateway"
+
+redis:
+  host: "localhost"
+  port: 6380
+  password: ""
+  db: 0
+
+proxy:
+  selection_strategy: "fill_first"
+  health_check_interval: 60
+  max_failures: 3
+  max_retries: 3
+  retry_delay_ms: 1000
+  down_recovery_delay_min: 1440
+  connect_timeout_sec: 10
+
+providers:
+  antigravity:
+    enabled: true
+    auth_strategy: "oauth"
+    base_url: "https://api.antigravity.com"
+    oauth_client_id: ""
+    oauth_client_secret: ""
+    base_urls: []
+
+  openai:
+    enabled: true
+    auth_strategy: "api_key"
+    base_url: "https://api.openai.com/v1"
+    oauth_client_id: ""
+    oauth_client_secret: ""
+    base_urls: []
+
+  glm:
+    enabled: true
+    auth_strategy: "bearer"
+    base_url: "https://open.bigmodel.cn/api/paas/v4"
+    oauth_client_id: ""
+    oauth_client_secret: ""
+    base_urls: []
