@@ -12,7 +12,7 @@ worktrees/
 
 # Backend
 backend/aigateway.exe
-backend/config/config.yaml
+
 
 # Frontend
 frontend/node_modules/
