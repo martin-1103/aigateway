@@ -3,6 +3,7 @@
 list:
   method: GET
   path: /api/v1/providers
+  auth: none (public)
   response:
     providers: ProviderInfo[]
     total: integer

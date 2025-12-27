@@ -5,6 +5,7 @@
 sendMessage:
   method: POST
   path: /v1/messages
+  auth: Bearer JWT or API Key (admin | user)
   body:
     model: string                 # required - routes to provider
     messages: Message[]           # required
@@ -31,6 +32,7 @@ sendMessage:
 chatCompletion:
   method: POST
   path: /v1/chat/completions
+  auth: Bearer JWT or API Key (admin | user)
   body:                           # same as sendMessage
     model: string
     messages: Message[]

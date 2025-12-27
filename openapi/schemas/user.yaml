@@ -1,0 +1,33 @@
+# User model - matches models/user.model.go
+
+User:
+  id: string                      # UUID
+  username: string                # unique, max 50 chars
+  role: Role                      # admin | user | provider
+  is_active: boolean
+  created_at: datetime
+  updated_at: datetime
+
+# Role enum - matches models/role.enum.go
+Role:
+  enum:
+    - admin                       # Full access, can manage users
+    - user                        # Can access AI endpoints, manage own API keys
+    - provider                    # Can manage accounts (no AI access)
+
+# Role permissions
+permissions:
+  admin:
+    - access AI endpoints
+    - manage users
+    - manage accounts
+    - manage proxies
+    - manage API keys
+    - manage model mappings
+  user:
+    - access AI endpoints
+    - manage own API keys
+    - view own model mappings
+  provider:
+    - manage accounts (own only)
+    - OAuth account creation

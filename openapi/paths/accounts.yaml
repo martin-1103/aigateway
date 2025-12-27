@@ -1,8 +1,10 @@
 # Account management endpoints
+# Note: Provider/User can only see/modify accounts they created
 
 list:
   method: GET
   path: /api/v1/accounts
+  auth: Bearer JWT (admin | provider | user)
   query:
     limit: integer                # default: 20
     offset: integer               # default: 0
@@ -15,6 +17,7 @@ list:
 create:
   method: POST
   path: /api/v1/accounts
+  auth: Bearer JWT (admin | provider | user)
   body:
     provider_id: string           # required: antigravity | openai | glm
     label: string
@@ -26,6 +29,7 @@ create:
 get:
   method: GET
   path: /api/v1/accounts/{id}
+  auth: Bearer JWT (admin | provider | user)
   params:
     id: string
   response: Account
@@ -33,6 +37,7 @@ get:
 update:
   method: PUT
   path: /api/v1/accounts/{id}
+  auth: Bearer JWT (admin | provider | user)
   params:
     id: string
   body:
@@ -44,6 +49,7 @@ update:
 delete:
   method: DELETE
   path: /api/v1/accounts/{id}
+  auth: Bearer JWT (admin | user)    # Provider cannot delete
   params:
     id: string
   response:

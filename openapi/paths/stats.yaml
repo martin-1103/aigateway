@@ -3,6 +3,7 @@
 proxyStats:
   method: GET
   path: /api/v1/stats/proxies/{id}
+  auth: Bearer JWT (admin | user)
   params:
     id: integer
   query:
@@ -13,6 +14,7 @@ proxyStats:
 logs:
   method: GET
   path: /api/v1/stats/logs
+  auth: Bearer JWT (admin | user)
   query:
     limit: integer                # default: 100
   response:

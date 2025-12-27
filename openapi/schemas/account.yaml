@@ -12,6 +12,7 @@ Account:
   expires_at: datetime | null
   last_used_at: datetime | null
   usage_count: integer
+  created_by: string | null       # User ID who created this account
   created_at: datetime
   updated_at: datetime
 

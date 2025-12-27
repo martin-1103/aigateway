@@ -1,8 +1,9 @@
-# Proxy pool management endpoints
+# Proxy pool management endpoints (Admin only)
 
 list:
   method: GET
   path: /api/v1/proxies
+  auth: Bearer JWT (admin)
   query:
     limit: integer                # default: 20
     offset: integer               # default: 0
@@ -15,6 +16,7 @@ list:
 create:
   method: POST
   path: /api/v1/proxies
+  auth: Bearer JWT (admin)
   body:
     url: string                   # required
     protocol: string              # http | https | socks5
@@ -29,6 +31,7 @@ create:
 get:
   method: GET
   path: /api/v1/proxies/{id}
+  auth: Bearer JWT (admin)
   params:
     id: integer
   response: Proxy
@@ -36,6 +39,7 @@ get:
 update:
   method: PUT
   path: /api/v1/proxies/{id}
+  auth: Bearer JWT (admin)
   params:
     id: integer
   body:
@@ -51,6 +55,7 @@ update:
 delete:
   method: DELETE
   path: /api/v1/proxies/{id}
+  auth: Bearer JWT (admin)
   params:
     id: integer
   response:
@@ -59,11 +64,13 @@ delete:
 assignments:
   method: GET
   path: /api/v1/proxies/assignments
+  auth: Bearer JWT (admin)
   response:
     assignments: object           # map[proxy_id] -> account_id[]
 
 recalculate:
   method: POST
   path: /api/v1/proxies/recalculate
+  auth: Bearer JWT (admin)
   response:
     message: string               # "counts recalculated"
