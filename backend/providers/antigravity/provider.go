@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"sync"
 	"time"
 )
@@ -155,18 +156,26 @@ func (p *AntigravityProvider) getHTTPClient(proxyURL string) *http.Client {
 		return client
 	}
 
-	// Create new HTTP client
-	client := &http.Client{
-		Timeout: 120 * time.Second,
-		Transport: &http.Transport{
-			MaxIdleConns:        100,
-			MaxIdleConnsPerHost: 10,
-			IdleConnTimeout:     90 * time.Second,
-		},
+	// Create transport with optional proxy support
+	transport := &http.Transport{
+		MaxIdleConns:        100,
+		MaxIdleConnsPerHost: 10,
+		IdleConnTimeout:     90 * time.Second,
 	}
 
-	// TODO: Add proxy support if proxyURL is provided
-	// This would require parsing the proxyURL and configuring the transport
+	// Configure proxy if proxyURL is provided
+	if proxyURL != "" {
+		parsedURL, err := url.Parse(proxyURL)
+		if err == nil {
+			transport.Proxy = http.ProxyURL(parsedURL)
+		}
+	}
+
+	// Create new HTTP client with configured transport
+	client := &http.Client{
+		Timeout:   120 * time.Second,
+		Transport: transport,
+	}
 
 	p.httpClients[cacheKey] = client
 	return client

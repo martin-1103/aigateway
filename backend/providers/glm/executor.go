@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"time"
 
 	"aigateway-backend/providers"
@@ -89,18 +90,22 @@ func extractAPIKey(req *providers.ExecuteRequest) (string, error) {
 
 // createHTTPClient creates an HTTP client with optional proxy configuration
 func createHTTPClient(proxyURL string) *http.Client {
-	client := &http.Client{
-		Timeout: 120 * time.Second,
+	transport := &http.Transport{
+		MaxIdleConns:        100,
+		IdleConnTimeout:     90 * time.Second,
+		TLSHandshakeTimeout: 10 * time.Second,
 	}
 
+	// Configure proxy if provided
 	if proxyURL != "" {
-		// Note: In production, you'd parse proxyURL and configure transport
-		// For now, using default transport
-		// transport := &http.Transport{
-		// 	Proxy: http.ProxyURL(proxyURLParsed),
-		// }
-		// client.Transport = transport
+		parsedURL, err := url.Parse(proxyURL)
+		if err == nil {
+			transport.Proxy = http.ProxyURL(parsedURL)
+		}
 	}
 
-	return client
+	return &http.Client{
+		Transport: transport,
+		Timeout:   120 * time.Second,
+	}
 }
