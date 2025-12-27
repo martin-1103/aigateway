@@ -1,0 +1,79 @@
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
+import type { RequestLog } from '../stats.types'
+
+interface RequestLogsTableProps {
+  logs: RequestLog[]
+  isLoading: boolean
+}
+
+export function RequestLogsTable({ logs, isLoading }: RequestLogsTableProps) {
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleString()
+  }
+
+  const getStatusBadgeClass = (status: RequestLog['status']) => {
+    return status === 'success'
+      ? 'inline-flex items-center rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-700'
+      : 'inline-flex items-center rounded-full bg-red-100 px-2 py-1 text-xs font-medium text-red-700'
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">Recent Request Logs</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Model</TableHead>
+              <TableHead>Provider</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Latency</TableHead>
+              <TableHead>Time</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {isLoading ? (
+              <TableRow>
+                <TableCell colSpan={5} className="text-center text-muted-foreground">
+                  Loading...
+                </TableCell>
+              </TableRow>
+            ) : logs.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={5} className="text-center text-muted-foreground">
+                  No request logs found
+                </TableCell>
+              </TableRow>
+            ) : (
+              logs.map((log) => (
+                <TableRow key={log.id}>
+                  <TableCell className="font-medium">{log.model}</TableCell>
+                  <TableCell>{log.provider}</TableCell>
+                  <TableCell>
+                    <span className={getStatusBadgeClass(log.status)}>
+                      {log.status}
+                    </span>
+                  </TableCell>
+                  <TableCell>{log.latency_ms}ms</TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {formatDate(log.created_at)}
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
+  )
+}
