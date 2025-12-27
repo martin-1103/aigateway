@@ -11,10 +11,25 @@ import (
 	"aigateway/providers"
 )
 
+// RetryContext tracks retry state across attempts
+type RetryContext struct {
+	OriginalAccountID  string
+	CurrentAccountID   string
+	RetryCount         int
+	SwitchedFromAccID  *string
+	ProxyMarkedDown    bool
+}
+
 // executeWithAuthManager executes request with health-aware account selection and retry
 func (s *RouterService) executeWithAuthManager(ctx context.Context, req Request, attempt int) (Response, error) {
-	if attempt >= s.config.MaxRetries {
-		return Response{}, fmt.Errorf("max retries (%d) exceeded", s.config.MaxRetries)
+	retryCtx := &RetryContext{}
+	return s.executeWithRetry(ctx, req, attempt, retryCtx)
+}
+
+// executeWithRetry handles retry logic with same account before switching
+func (s *RouterService) executeWithRetry(ctx context.Context, req Request, attempt int, retryCtx *RetryContext) (Response, error) {
+	if attempt >= s.config.MaxRetries*2 { // Allow retries for both original and fallback account
+		return Response{}, fmt.Errorf("max retries (%d) exceeded", s.config.MaxRetries*2)
 	}
 
 	provider, resolvedModel, err := s.Route(req.Model)
@@ -33,16 +48,67 @@ func (s *RouterService) executeWithAuthManager(ctx context.Context, req Request,
 		return Response{}, fmt.Errorf("failed to select account: %w", err)
 	}
 
+	// Track original account
+	if retryCtx.OriginalAccountID == "" {
+		retryCtx.OriginalAccountID = accState.Account.ID
+	}
+	retryCtx.CurrentAccountID = accState.Account.ID
+
 	// Execute and track result
-	resp, statusCode, payload, execErr := s.executeAndTrack(ctx, provider, accState.Account, resolvedModel, req)
+	resp, statusCode, payload, execErr := s.executeWithPermanentProxy(ctx, provider, accState.Account, resolvedModel, req, retryCtx)
 
 	// Mark result in AuthManager
 	s.authManager.MarkResult(accState.Account.ID, resolvedModel, statusCode, payload)
 
-	// Retry if needed
+	// Handle retry logic
 	if execErr != nil && s.shouldRetry(statusCode, attempt) {
-		return s.executeWithAuthManager(ctx, req, attempt+1)
+		retryCtx.RetryCount++
+
+		// Check if we've exhausted retries for current account
+		if retryCtx.RetryCount >= s.config.MaxRetries {
+			// Mark proxy as down if we have one
+			if accState.Account.ProxyID != nil && !retryCtx.ProxyMarkedDown {
+				s.proxyService.MarkProxyDown(*accState.Account.ProxyID)
+				retryCtx.ProxyMarkedDown = true
+			}
+
+			// Try to switch to a different account
+			altAccount, switchErr := s.accountService.SelectAccountExcluding(providerID, resolvedModel, accState.Account.ID)
+			if switchErr == nil {
+				// Track that we switched accounts
+				retryCtx.SwitchedFromAccID = &accState.Account.ID
+				retryCtx.RetryCount = 0 // Reset retry count for new account
+
+				// Execute with new account
+				return s.executeWithSwitchedAccount(ctx, provider, altAccount, resolvedModel, req, retryCtx)
+			}
+			// No alternative account available, return the error
+			return resp, execErr
+		}
+
+		// Retry with same account after delay
+		time.Sleep(time.Duration(s.config.MaxRetries*100) * time.Millisecond)
+		return s.executeWithRetry(ctx, req, attempt+1, retryCtx)
 	}
+
+	return resp, execErr
+}
+
+// executeWithSwitchedAccount executes with a different account after retry failure
+func (s *RouterService) executeWithSwitchedAccount(
+	ctx context.Context,
+	provider providers.Provider,
+	account *models.Account,
+	resolvedModel string,
+	req Request,
+	retryCtx *RetryContext,
+) (Response, error) {
+	retryCtx.CurrentAccountID = account.ID
+
+	resp, statusCode, payload, execErr := s.executeWithPermanentProxy(ctx, provider, account, resolvedModel, req, retryCtx)
+
+	// Mark result
+	s.authManager.MarkResult(account.ID, resolvedModel, statusCode, payload)
 
 	return resp, execErr
 }
@@ -57,7 +123,8 @@ func (s *RouterService) handleAllBlocked(
 	waitDur := time.Until(allBlocked.WaitDuration)
 	if waitDur <= 0 {
 		// Retry immediately
-		return s.executeWithAuthManager(ctx, req, attempt+1)
+		retryCtx := &RetryContext{}
+		return s.executeWithRetry(ctx, req, attempt+1, retryCtx)
 	}
 
 	if waitDur > s.config.MaxRetryWait {
@@ -69,32 +136,29 @@ func (s *RouterService) handleAllBlocked(
 	case <-ctx.Done():
 		return Response{}, ctx.Err()
 	case <-time.After(waitDur):
-		return s.executeWithAuthManager(ctx, req, attempt+1)
+		retryCtx := &RetryContext{}
+		return s.executeWithRetry(ctx, req, attempt+1, retryCtx)
 	}
 }
 
-// executeAndTrack executes request and returns status code and payload for result tracking
-func (s *RouterService) executeAndTrack(
+// executeWithPermanentProxy executes request using account's permanent proxy
+func (s *RouterService) executeWithPermanentProxy(
 	ctx context.Context,
 	provider providers.Provider,
 	account *models.Account,
 	resolvedModel string,
 	req Request,
+	retryCtx *RetryContext,
 ) (Response, int, []byte, error) {
 	providerID := provider.ID()
 
-	// Assign proxy
-	if err := s.proxyService.AssignProxy(account, providerID); err != nil {
-		return Response{}, 0, nil, fmt.Errorf("failed to assign proxy: %w", err)
-	}
-
-	// Get token
+	// Get token (uses account's permanent proxy for refresh if needed)
 	token, err := s.oauthService.GetAccessToken(account)
 	if err != nil {
 		return Response{}, 0, nil, fmt.Errorf("failed to get access token: %w", err)
 	}
 
-	// Execute request
+	// Execute request with account's permanent proxy
 	executeReq := &providers.ExecuteRequest{
 		Model:    resolvedModel,
 		Payload:  req.Payload,
@@ -108,22 +172,24 @@ func (s *RouterService) executeAndTrack(
 
 	// Handle connection errors
 	if err != nil && executeResp == nil {
-		s.statsTrackerService.RecordFailure(&account.ID, account.ProxyID, 0, err)
+		s.statsTrackerService.RecordFailureWithRetry(&account.ID, account.ProxyID, 0, err, retryCtx.RetryCount, retryCtx.SwitchedFromAccID)
 		return Response{}, 0, nil, fmt.Errorf("provider execution failed: %w", err)
 	}
 
 	statusCode := executeResp.StatusCode
 	payload := executeResp.Payload
 
-	// Record stats async
+	// Record stats async with retry info
 	providerIDPtr := &providerID
-	go s.statsTrackerService.RecordRequest(
+	go s.statsTrackerService.RecordRequestWithRetry(
 		&account.ID,
 		account.ProxyID,
 		providerIDPtr,
 		resolvedModel,
 		statusCode,
 		executeResp.LatencyMs,
+		retryCtx.RetryCount,
+		retryCtx.SwitchedFromAccID,
 	)
 
 	// Check success

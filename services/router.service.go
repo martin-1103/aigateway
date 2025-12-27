@@ -137,7 +137,7 @@ func (s *RouterService) executeLegacy(ctx context.Context, req Request) (Respons
 	return s.executeWithAccount(ctx, provider, account, resolvedModel, req)
 }
 
-// executeWithAccount executes request with given account
+// executeWithAccount executes request with given account using permanent proxy
 func (s *RouterService) executeWithAccount(
 	ctx context.Context,
 	provider providers.Provider,
@@ -147,10 +147,7 @@ func (s *RouterService) executeWithAccount(
 ) (Response, error) {
 	providerID := provider.ID()
 
-	if err := s.proxyService.AssignProxy(account, providerID); err != nil {
-		return Response{}, fmt.Errorf("failed to assign proxy: %w", err)
-	}
-
+	// Use account's permanent proxy (no dynamic assignment)
 	token, err := s.oauthService.GetAccessToken(account)
 	if err != nil {
 		return Response{}, fmt.Errorf("failed to get access token: %w", err)
