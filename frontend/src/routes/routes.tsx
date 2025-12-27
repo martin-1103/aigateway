@@ -3,6 +3,7 @@ import { createBrowserRouter, Navigate } from 'react-router-dom'
 import { AppLayout } from '@/components/layout'
 import { AuthGuard, RoleGuard, LoginPage, useAuthStore } from '@/features/auth'
 import { getMe } from '@/features/auth/api/get-me.api'
+import type { User } from '@/features/auth'
 import { DashboardPage } from '@/features/dashboard'
 import { UsersPage } from '@/features/users'
 import { AccountsPage } from '@/features/accounts'
@@ -20,11 +21,13 @@ function AuthenticatedLayout() {
     if (isAuthenticated && !user) {
       setLoading(true)
       getMe()
-        .then((userData) => {
+        .then((meData) => {
           // Get token from store to pass to setAuth
           const state = useAuthStore.getState()
           if (state.token) {
-            setAuth(state.token, userData)
+            // Cast MeResponse to User (extra fields will be undefined)
+            const user = meData as User
+            setAuth(state.token, user)
           }
         })
         .catch(() => {
