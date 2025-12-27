@@ -36,7 +36,7 @@ type OAuthFlowService struct {
 // OAuthSession represents an OAuth flow session stored in Redis
 type OAuthSession struct {
 	Provider     string    `json:"provider"`
-	AccountName  string    `json:"account_name"`
+	ProjectID    string    `json:"project_id"`
 	FlowType     string    `json:"flow_type"`
 	RedirectURI  string    `json:"redirect_uri"`
 	CodeVerifier string    `json:"code_verifier"`
@@ -47,7 +47,7 @@ type OAuthSession struct {
 // InitFlowRequest represents OAuth init request
 type InitFlowRequest struct {
 	Provider    string  `json:"provider" binding:"required"`
-	AccountName string  `json:"account_name" binding:"required"`
+	ProjectID   string  `json:"project_id" binding:"required"`
 	FlowType    string  `json:"flow_type" binding:"required"`
 	RedirectURI string  `json:"redirect_uri"`
 	CreatedBy   *string `json:"created_by,omitempty"`
@@ -118,7 +118,7 @@ func (s *OAuthFlowService) InitFlow(ctx context.Context, req *InitFlowRequest) (
 
 	session := OAuthSession{
 		Provider:     req.Provider,
-		AccountName:  req.AccountName,
+		ProjectID:    req.ProjectID,
 		FlowType:     req.FlowType,
 		RedirectURI:  redirectURI,
 		CodeVerifier: pkceCodes.CodeVerifier,
@@ -199,11 +199,21 @@ func (s *OAuthFlowService) ExchangeCode(ctx context.Context, callbackURL string)
 		return nil, fmt.Errorf("failed to marshal auth data: %w", err)
 	}
 
+	metadata := map[string]interface{}{
+		"project_id": session.ProjectID,
+	}
+
+	metadataJSON, err := json.Marshal(metadata)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal metadata: %w", err)
+	}
+
 	account := &models.Account{
 		ID:         uuid.New().String(),
 		ProviderID: session.Provider,
-		Label:      session.AccountName,
+		Label:      session.ProjectID,
 		AuthData:   string(authDataJSON),
+		Metadata:   string(metadataJSON),
 		IsActive:   true,
 		ExpiresAt:  &expiresAt,
 		CreatedBy:  session.CreatedBy,
