@@ -32,7 +32,7 @@ export function OAuthInitDialog({
     if (!provider || !projectId.trim()) return
 
     mutate({
-      provider: provider.name,
+      provider: provider.id,
       project_id: projectId.trim(),
       flow_type: 'auto',
     })
