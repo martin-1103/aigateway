@@ -22,8 +22,17 @@ func NewAuthService(user *UserService, jwt *JWTService, apiKey *APIKeyService) *
 }
 
 type LoginResponse struct {
-	Token     string `json:"token"`
-	ExpiresIn int    `json:"expires_in"`
+	Token string        `json:"token"`
+	User  *UserResponse `json:"user"`
+}
+
+type UserResponse struct {
+	ID        string `json:"id"`
+	Username  string `json:"username"`
+	Role      string `json:"role"`
+	IsActive  bool   `json:"is_active"`
+	CreatedAt string `json:"created_at"`
+	UpdatedAt string `json:"updated_at"`
 }
 
 func (s *AuthService) Login(username, password string) (*LoginResponse, error) {
@@ -46,8 +55,15 @@ func (s *AuthService) Login(username, password string) (*LoginResponse, error) {
 	}
 
 	return &LoginResponse{
-		Token:     token,
-		ExpiresIn: s.jwtService.ExpiresIn(),
+		Token: token,
+		User: &UserResponse{
+			ID:        user.ID,
+			Username:  user.Username,
+			Role:      string(user.Role),
+			IsActive:  user.IsActive,
+			CreatedAt: user.CreatedAt.String(),
+			UpdatedAt: user.UpdatedAt.String(),
+		},
 	}, nil
 }
 

@@ -28,7 +28,8 @@ func (m *Manager) StartPeriodicReconcile(ctx context.Context, interval time.Dura
 		ticker := time.NewTicker(interval)
 		defer ticker.Stop()
 
-		// Run immediately on start
+		// Defer first run by 30 seconds to allow server startup
+		time.Sleep(30 * time.Second)
 		m.reconcileAccounts(reconcileCtx, providerIDs)
 
 		for {

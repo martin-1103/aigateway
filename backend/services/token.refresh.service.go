@@ -48,9 +48,6 @@ func (s *TokenRefreshService) Start() {
 	ticker := time.NewTicker(s.interval)
 	defer ticker.Stop()
 
-	// Run immediately on start
-	s.refreshExpiring()
-
 	for {
 		select {
 		case <-s.ctx.Done():

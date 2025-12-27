@@ -127,14 +127,6 @@ func main() {
 	authManager.RegisterRefresher("codex", codex.NewRefresher())
 	// Note: antigravity uses existing tokenRefreshService
 
-	// Load accounts for all OAuth providers
-	if err := authManager.LoadAccounts(ctx, "antigravity", "claude", "codex"); err != nil {
-		log.Printf("Warning: Failed to load accounts into AuthManager: %v", err)
-	}
-
-	// Start background token refresh (for claude/codex)
-	authManager.StartAutoRefresh(ctx, 30*time.Second)
-
 	// Wire quota tracker to AuthManager
 	authManager.SetQuotaTracker(quotaTrackerService, tokenExtractor)
 
@@ -144,10 +136,20 @@ func main() {
 	// Wire AuthManager to OAuthFlowService for hot-reload
 	oauthFlowService.SetAuthManager(authManager)
 
-	// Start periodic reconciliation for hot-reload recovery
+	// Start background token refresh (for claude/codex)
+	authManager.StartAutoRefresh(ctx, 30*time.Second)
+
+	// Start periodic reconciliation for hot-reload recovery (deferred)
 	providerIDs := []string{"antigravity", "claude", "codex"}
 	authManager.StartPeriodicReconcile(ctx, 5*time.Minute, providerIDs)
-	log.Println("AuthManager periodic reconciliation started (5min interval)")
+
+	// Load accounts async after server starts
+	go func() {
+		time.Sleep(2 * time.Second)
+		if err := authManager.LoadAccounts(ctx, "antigravity", "claude", "codex"); err != nil {
+			log.Printf("Warning: Failed to load accounts into AuthManager: %v", err)
+		}
+	}()
 
 	// Enable AuthManager for account selection (feature flag)
 	// Set to true to use health-aware selection with retry
