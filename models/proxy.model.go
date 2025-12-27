@@ -38,6 +38,7 @@ type Proxy struct {
 	SuccessRate         float64       `gorm:"type:decimal(5,2);default:100.00" json:"success_rate"`
 	AvgLatencyMs        int           `gorm:"default:0" json:"avg_latency_ms"`
 	LastCheckedAt       *time.Time    `json:"last_checked_at"`
+	MarkedDownAt        *time.Time    `gorm:"index" json:"marked_down_at"`
 	CreatedAt           time.Time     `json:"created_at"`
 	UpdatedAt           time.Time     `json:"updated_at"`
 }
@@ -67,15 +68,17 @@ func (ProxyStats) TableName() string {
 
 // RequestLog represents audit trail
 type RequestLog struct {
-	ID         int64     `gorm:"primaryKey;autoIncrement" json:"id"`
-	ProviderID *string   `gorm:"size:50;index:idx_provider_account" json:"provider_id"`
-	AccountID  *string   `gorm:"size:36;index:idx_provider_account,idx_account" json:"account_id"`
-	ProxyID    *int      `json:"proxy_id"`
-	Model      string    `gorm:"size:100" json:"model"`
-	StatusCode int       `json:"status_code"`
-	LatencyMs  int       `json:"latency_ms"`
-	Error      string    `gorm:"type:text" json:"error"`
-	CreatedAt  time.Time `gorm:"index:idx_created" json:"created_at"`
+	ID                   int64     `gorm:"primaryKey;autoIncrement" json:"id"`
+	ProviderID           *string   `gorm:"size:50;index:idx_provider_account" json:"provider_id"`
+	AccountID            *string   `gorm:"size:36;index:idx_provider_account,idx_account" json:"account_id"`
+	ProxyID              *int      `json:"proxy_id"`
+	Model                string    `gorm:"size:100" json:"model"`
+	StatusCode           int       `json:"status_code"`
+	LatencyMs            int       `json:"latency_ms"`
+	RetryCount           int       `gorm:"default:0" json:"retry_count"`
+	SwitchedFromAccountID *string  `gorm:"size:36" json:"switched_from_account_id,omitempty"`
+	Error                string    `gorm:"type:text" json:"error"`
+	CreatedAt            time.Time `gorm:"index:idx_created" json:"created_at"`
 }
 
 func (RequestLog) TableName() string {

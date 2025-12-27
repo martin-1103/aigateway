@@ -116,3 +116,20 @@ func (r *ProxyRepository) RecalculateAccountCounts() error {
 		)
 	`).Error
 }
+
+func (r *ProxyRepository) UpdateHealthWithDownTime(id int, status models.HealthStatus, markedDownAt *time.Time) error {
+	now := time.Now()
+	updates := map[string]interface{}{
+		"health_status":   status,
+		"last_checked_at": &now,
+		"marked_down_at":  markedDownAt,
+	}
+
+	if status == models.HealthStatusHealthy {
+		updates["consecutive_failures"] = 0
+	} else if status == models.HealthStatusDown {
+		updates["consecutive_failures"] = gorm.Expr("consecutive_failures + 1")
+	}
+
+	return r.db.Model(&models.Proxy{}).Where("id = ?", id).Updates(updates).Error
+}
