@@ -22,9 +22,9 @@ export function AccountCreateDialog({ open, onOpenChange }: AccountCreateDialogP
   } = useForm<CreateAccountFormData>({
     resolver: zodResolver(createAccountSchema),
     defaultValues: {
-      provider: '',
-      email: '',
-      credentials: '',
+      provider_id: '',
+      label: '',
+      auth_data: '',
       is_active: true,
     },
   })
@@ -53,9 +53,9 @@ export function AccountCreateDialog({ open, onOpenChange }: AccountCreateDialogP
       isSubmitting={createMutation.isPending}
       submitLabel="Create"
     >
-      <FormField label="Provider" error={errors.provider?.message}>
+      <FormField label="Provider" error={errors.provider_id?.message}>
         <select
-          {...register('provider')}
+          {...register('provider_id')}
           className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           aria-label="Select provider"
         >
@@ -68,18 +68,18 @@ export function AccountCreateDialog({ open, onOpenChange }: AccountCreateDialogP
         </select>
       </FormField>
 
-      <FormField label="Email" error={errors.email?.message}>
+      <FormField label="Account Label" error={errors.label?.message}>
         <Input
-          {...register('email')}
-          type="email"
-          placeholder="account@example.com"
-          autoComplete="email"
+          {...register('label')}
+          type="text"
+          placeholder="My OpenAI Account"
+          autoComplete="off"
         />
       </FormField>
 
-      <FormField label="Credentials (JSON)" error={errors.credentials?.message}>
+      <FormField label="Credentials (JSON)" error={errors.auth_data?.message}>
         <textarea
-          {...register('credentials')}
+          {...register('auth_data')}
           rows={4}
           placeholder='{"client_id": "...", "client_secret": "..."}'
           className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"

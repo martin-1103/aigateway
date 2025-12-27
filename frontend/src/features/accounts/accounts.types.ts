@@ -37,15 +37,15 @@ export interface AccountsResponse {
 }
 
 export interface CreateAccountRequest {
-  provider: string
-  email: string
-  credentials: string
+  provider_id: string
+  label: string
+  auth_data: string
   is_active?: boolean
 }
 
 export interface UpdateAccountRequest {
-  provider?: string
-  email?: string
-  credentials?: string
+  provider_id?: string
+  label?: string
+  auth_data?: string
   is_active?: boolean
 }

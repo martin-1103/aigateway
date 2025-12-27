@@ -1,16 +1,16 @@
 import { z } from 'zod'
 
 export const createAccountSchema = z.object({
-  provider: z.string().min(1, 'Provider is required'),
-  email: z.string().email('Invalid email address'),
-  credentials: z.string().min(1, 'Credentials are required'),
+  provider_id: z.string().min(1, 'Provider is required'),
+  label: z.string().min(1, 'Account label is required'),
+  auth_data: z.string().min(1, 'Credentials are required'),
   is_active: z.boolean().default(true),
 })
 
 export const updateAccountSchema = z.object({
-  provider: z.string().min(1, 'Provider is required'),
-  email: z.string().email('Invalid email address'),
-  credentials: z.string().optional(),
+  provider_id: z.string().min(1, 'Provider is required'),
+  label: z.string().min(1, 'Account label is required'),
+  auth_data: z.string().optional(),
   is_active: z.boolean(),
 })
 

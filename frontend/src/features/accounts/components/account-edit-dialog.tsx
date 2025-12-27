@@ -29,9 +29,9 @@ export function AccountEditDialog({ open, onOpenChange, account }: AccountEditDi
   useEffect(() => {
     if (account) {
       reset({
-        provider: account.provider_id,
-        email: account.label,
-        credentials: '',
+        provider_id: account.provider_id,
+        label: account.label,
+        auth_data: '',
         is_active: account.is_active,
       })
     }
@@ -47,10 +47,10 @@ export function AccountEditDialog({ open, onOpenChange, account }: AccountEditDi
     if (!account) return
 
     const payload = {
-      provider: data.provider,
-      email: data.email,
+      provider_id: data.provider_id,
+      label: data.label,
       is_active: data.is_active,
-      ...(data.credentials ? { credentials: data.credentials } : {}),
+      ...(data.auth_data ? { auth_data: data.auth_data } : {}),
     }
 
     updateMutation.mutate({ id: account.id, data: payload })
@@ -66,9 +66,9 @@ export function AccountEditDialog({ open, onOpenChange, account }: AccountEditDi
       isSubmitting={updateMutation.isPending}
       submitLabel="Save Changes"
     >
-      <FormField label="Provider" error={errors.provider?.message}>
+      <FormField label="Provider" error={errors.provider_id?.message}>
         <select
-          {...register('provider')}
+          {...register('provider_id')}
           className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           aria-label="Select provider"
         >
@@ -81,18 +81,18 @@ export function AccountEditDialog({ open, onOpenChange, account }: AccountEditDi
         </select>
       </FormField>
 
-      <FormField label="Email" error={errors.email?.message}>
+      <FormField label="Account Label" error={errors.label?.message}>
         <Input
-          {...register('email')}
-          type="email"
-          placeholder="account@example.com"
-          autoComplete="email"
+          {...register('label')}
+          type="text"
+          placeholder="My OpenAI Account"
+          autoComplete="off"
         />
       </FormField>
 
-      <FormField label="Credentials (JSON)" error={errors.credentials?.message}>
+      <FormField label="Credentials (JSON)" error={errors.auth_data?.message}>
         <textarea
-          {...register('credentials')}
+          {...register('auth_data')}
           rows={4}
           placeholder="Leave empty to keep existing credentials"
           className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
