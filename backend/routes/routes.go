@@ -25,6 +25,9 @@ func SetupRoutes(
 	quotaHandler *handlers.QuotaHandler,
 	authMiddleware *middleware.AuthMiddleware,
 ) {
+	// Apply CORS middleware globally
+	r.Use(middleware.CORS())
+
 	// Apply global auth extraction
 	r.Use(authMiddleware.ExtractAuth())
 

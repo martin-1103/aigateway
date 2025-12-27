@@ -38,8 +38,13 @@ func main() {
 		log.Fatalf("Failed to connect to MySQL: %v", err)
 	}
 
-	if err := database.AutoMigrate(db); err != nil {
-		log.Fatalf("Failed to migrate database: %v", err)
+	// Skip migration if SKIP_MIGRATION env var is set
+	if os.Getenv("SKIP_MIGRATION") != "true" {
+		if err := database.AutoMigrate(db); err != nil {
+			log.Fatalf("Failed to migrate database: %v", err)
+		}
+	} else {
+		log.Println("Skipping database migration (SKIP_MIGRATION=true)")
 	}
 
 	// Seed default admin user
@@ -136,6 +141,14 @@ func main() {
 	// Wire AuthManager to RouterService
 	routerService.SetAuthManager(authManager)
 
+	// Wire AuthManager to OAuthFlowService for hot-reload
+	oauthFlowService.SetAuthManager(authManager)
+
+	// Start periodic reconciliation for hot-reload recovery
+	providerIDs := []string{"antigravity", "claude", "codex"}
+	authManager.StartPeriodicReconcile(ctx, 5*time.Minute, providerIDs)
+	log.Println("AuthManager periodic reconciliation started (5min interval)")
+
 	// Enable AuthManager for account selection (feature flag)
 	// Set to true to use health-aware selection with retry
 	useAuthManager := os.Getenv("USE_AUTH_MANAGER") == "true"
@@ -217,6 +230,7 @@ func main() {
 	// Stop background services
 	tokenRefreshService.Stop()
 	authManager.StopAutoRefresh()
+	authManager.StopPeriodicReconcile()
 
 	log.Println("Server exited")
 }

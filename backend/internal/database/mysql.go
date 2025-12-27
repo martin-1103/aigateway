@@ -2,6 +2,7 @@ package database
 
 import (
 	"fmt"
+	"os"
 	"time"
 
 	"aigateway-backend/internal/config"
@@ -16,8 +17,14 @@ func NewMySQL(cfg *config.DatabaseConfig) (*gorm.DB, error) {
 	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8mb4&parseTime=True&loc=Local",
 		cfg.User, cfg.Password, cfg.Host, cfg.Port, cfg.Database)
 
+	// Determine log level based on environment
+	logLevel := logger.Silent
+	if os.Getenv("LOG_SQL") == "true" {
+		logLevel = logger.Info
+	}
+
 	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{
-		Logger: logger.Default.LogMode(logger.Info),
+		Logger: logger.Default.LogMode(logLevel),
 	})
 	if err != nil {
 		return nil, err
