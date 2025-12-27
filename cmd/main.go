@@ -59,6 +59,7 @@ func main() {
 	modelMappingRepo := repositories.NewModelMappingRepository(db)
 	userRepo := repositories.NewUserRepository(db)
 	apiKeyRepo := repositories.NewAPIKeyRepository(db)
+	quotaPatternRepo := repositories.NewQuotaPatternRepository(db)
 
 	// Initialize core services
 	httpClientService := services.NewHTTPClientService()
@@ -75,6 +76,8 @@ func main() {
 	proxyHealthService := services.NewProxyHealthService(proxyRepo, redis)
 	statsTrackerService := services.NewStatsTrackerService(statsRepo, proxyRepo, redis, proxyHealthService)
 	statsQueryService := services.NewStatsQueryService(statsRepo)
+	quotaTrackerService := services.NewQuotaTrackerService(quotaPatternRepo, redis)
+	tokenExtractor := services.NewTokenExtractor()
 	modelsService := services.NewModelsService(db, redis)
 	modelMappingService := services.NewModelMappingService(modelMappingRepo, redis)
 
@@ -127,6 +130,9 @@ func main() {
 	// Start background token refresh (for claude/codex)
 	authManager.StartAutoRefresh(ctx, 30*time.Second)
 
+	// Wire quota tracker to AuthManager
+	authManager.SetQuotaTracker(quotaTrackerService, tokenExtractor)
+
 	// Wire AuthManager to RouterService
 	routerService.SetAuthManager(authManager)
 
@@ -160,6 +166,7 @@ func main() {
 	userHandler := handlers.NewUserHandler(userService)
 	apiKeyHandler := handlers.NewAPIKeyHandler(apiKeyService)
 	oauthHandler := handlers.NewOAuthHandler(oauthFlowService)
+	quotaHandler := handlers.NewQuotaHandler(quotaTrackerService, accountRepo, quotaPatternRepo)
 
 	// Initialize auth status handler (for AuthManager dashboard)
 	authStatusHandler := handlers.NewAuthStatusHandler(authManager, authManager.GetMetrics())
@@ -171,6 +178,7 @@ func main() {
 	r := gin.Default()
 	routes.SetupRoutes(
 		r,
+		cfg,
 		proxyHandler,
 		accountHandler,
 		proxyMgmtHandler,
@@ -181,6 +189,7 @@ func main() {
 		userHandler,
 		apiKeyHandler,
 		oauthHandler,
+		quotaHandler,
 		authMiddleware,
 	)
 

@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"aigateway/config"
 	"aigateway/handlers"
 	"aigateway/middleware"
 	"aigateway/models"
@@ -10,6 +11,7 @@ import (
 
 func SetupRoutes(
 	r *gin.Engine,
+	cfg *config.Config,
 	proxyHandler *handlers.ProxyHandler,
 	accountHandler *handlers.AccountHandler,
 	proxyMgmtHandler *handlers.ProxyManagementHandler,
@@ -20,6 +22,7 @@ func SetupRoutes(
 	userHandler *handlers.UserHandler,
 	apiKeyHandler *handlers.APIKeyHandler,
 	oauthHandler *handlers.OAuthHandler,
+	quotaHandler *handlers.QuotaHandler,
 	authMiddleware *middleware.AuthMiddleware,
 ) {
 	// Apply global auth extraction
@@ -30,6 +33,7 @@ func SetupRoutes(
 
 	// Public models endpoint
 	r.GET("/v1/models", modelsHandler.GetModels)
+
 
 	// AI model proxy endpoints (require auth with AI access)
 	r.POST("/v1/messages", middleware.RequireAIAccess(), proxyHandler.HandleProxy)
@@ -98,6 +102,16 @@ func SetupRoutes(
 		{
 			stats.GET("/proxies/:id", statsHandler.GetProxyStats)
 			stats.GET("/logs", statsHandler.GetRecentLogs)
+		}
+
+		// Quota endpoints (admin + user)
+		quota := api.Group("/quota")
+		quota.Use(middleware.RequireRole(models.RoleAdmin, models.RoleUser))
+		{
+			quota.GET("/accounts", quotaHandler.ListAccountsQuota)
+			quota.GET("/accounts/:id", quotaHandler.GetAccountQuota)
+			quota.DELETE("/accounts/:id", quotaHandler.ClearAccountQuota)
+			quota.GET("/providers/:provider/summary", quotaHandler.GetProviderSummary)
 		}
 
 		// Model mapping endpoints (admin + user)
