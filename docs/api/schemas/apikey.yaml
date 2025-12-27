@@ -1,0 +1,14 @@
+# API Key model - matches models/apikey.model.go
+
+APIKey:
+  id: string                      # UUID
+  user_id: string                 # Owner user UUID
+  key_prefix: string              # First 12 chars of key (for identification)
+  label: string                   # Human-readable label
+  is_active: boolean
+  last_used_at: datetime | null
+  created_at: datetime
+  updated_at: datetime
+
+# Note: key_hash is stored in DB but never exposed in API
+# Full API key is only returned once at creation time

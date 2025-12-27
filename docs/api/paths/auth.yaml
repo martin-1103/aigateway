@@ -1,0 +1,31 @@
+# Authentication endpoints
+
+login:
+  method: POST
+  path: /api/v1/auth/login
+  auth: none
+  body:
+    username: string              # required
+    password: string              # required
+  response:
+    token: string                 # JWT token
+    expires_in: integer           # Token expiry in seconds
+
+me:
+  method: GET
+  path: /api/v1/auth/me
+  auth: Bearer JWT
+  response:
+    id: string
+    username: string
+    role: string                  # admin | user | provider
+
+changePassword:
+  method: PUT
+  path: /api/v1/auth/password
+  auth: Bearer JWT
+  body:
+    current_password: string      # required
+    new_password: string          # required, min 6 chars
+  response:
+    message: string               # "password changed"

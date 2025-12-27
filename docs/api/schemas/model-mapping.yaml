@@ -1,0 +1,17 @@
+# Model Mapping - matches models/model.mapping.go
+
+ModelMapping:
+  id: integer                     # auto-increment
+  alias: string                   # unique, model alias name
+  provider_id: string             # antigravity | openai | glm
+  model_name: string              # actual model name at provider
+  description: string             # optional description
+  enabled: boolean                # default: true
+  priority: integer               # for ordering, default: 0
+  owner_id: string | null         # null = global, string = user-owned
+  created_at: datetime
+  updated_at: datetime
+
+# Ownership rules:
+# - owner_id = null: global mapping (admin created, visible to all)
+# - owner_id = user_id: user-owned mapping (only visible to owner + admin)

@@ -1,0 +1,88 @@
+# AI Provider proxy endpoints
+# Both endpoints accept Claude (Anthropic Messages API) format
+# Response is always translated back to Claude format
+
+sendMessage:
+  method: POST
+  path: /v1/messages
+  auth: Bearer JWT or API Key (admin | user)
+  body:
+    model: string                 # required - routes to provider
+    messages: Message[]           # required
+    system: string | ContentBlock[]
+    max_tokens: integer
+    temperature: float            # 0.0-1.0
+    top_p: float
+    top_k: integer
+    stop_sequences: string[]
+    stream: boolean
+    tools: Tool[]
+  response:
+    id: string
+    type: string                  # "message"
+    role: string                  # "assistant"
+    content: ContentBlock[]
+    model: string
+    stop_reason: string           # end_turn | max_tokens | stop_sequence | tool_use
+    stop_sequence: string | null
+    usage:
+      input_tokens: integer
+      output_tokens: integer
+
+chatCompletion:
+  method: POST
+  path: /v1/chat/completions
+  auth: Bearer JWT or API Key (admin | user)
+  body:                           # same as sendMessage
+    model: string
+    messages: Message[]
+    system: string | ContentBlock[]
+    max_tokens: integer
+    temperature: float
+    stream: boolean
+    tools: Tool[]
+  response:                       # same Claude format response
+    id: string
+    type: string
+    role: string
+    content: ContentBlock[]
+    model: string
+    stop_reason: string
+    usage:
+      input_tokens: integer
+      output_tokens: integer
+
+# Model routing
+routing:
+  antigravity:
+    - gemini-*
+    - claude-sonnet-*
+  openai:
+    - gpt-*
+  glm:
+    - glm-*
+
+# Types
+types:
+  Message:
+    role: string                  # user | assistant
+    content: string | ContentBlock[]
+
+  ContentBlock:                   # union type
+    - TextBlock:
+        type: string              # "text"
+        text: string
+    - ToolUseBlock:
+        type: string              # "tool_use"
+        id: string
+        name: string
+        input: object
+    - ToolResultBlock:
+        type: string              # "tool_result"
+        tool_use_id: string
+        content: string | ContentBlock[]
+
+  Tool:
+    name: string
+    description: string
+    input_schema: object          # JSON Schema

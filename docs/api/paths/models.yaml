@@ -1,0 +1,15 @@
+# Models endpoint - returns available AI models by provider
+
+list:
+  method: GET
+  path: /v1/models
+  description: Get list of available AI models grouped by provider
+  auth: none (public)
+  response:
+    providers: ProviderModels[]
+
+types:
+  ProviderModels:
+    id: string                    # Provider ID (antigravity | openai | glm)
+    name: string                  # Provider display name
+    models: string[]              # List of model names

@@ -1,0 +1,28 @@
+# Account model - matches models/account.model.go
+
+Account:
+  id: string                      # UUID
+  provider_id: string             # antigravity | openai | glm
+  label: string
+  auth_data: string               # JSON string containing AuthData
+  metadata: string                # JSON string
+  is_active: boolean
+  proxy_url: string
+  proxy_id: integer | null
+  expires_at: datetime | null
+  last_used_at: datetime | null
+  usage_count: integer
+  created_by: string | null       # User ID who created this account
+  created_at: datetime
+  updated_at: datetime
+
+# AuthData is stored as JSON string in auth_data field
+AuthData:
+  access_token: string
+  refresh_token: string
+  token_url: string
+  client_id: string
+  client_secret: string
+  expires_at: datetime
+  expires_in: integer
+  token_type: string              # Bearer

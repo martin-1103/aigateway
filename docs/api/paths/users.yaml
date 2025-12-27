@@ -1,0 +1,51 @@
+# User management endpoints (Admin only)
+
+list:
+  method: GET
+  path: /api/v1/users
+  auth: Bearer JWT (admin)
+  query:
+    limit: integer                # default: 20
+    offset: integer               # default: 0
+  response:
+    data: User[]
+    total: integer
+
+get:
+  method: GET
+  path: /api/v1/users/{id}
+  auth: Bearer JWT (admin)
+  params:
+    id: string                    # UUID
+  response: User
+
+create:
+  method: POST
+  path: /api/v1/users
+  auth: Bearer JWT (admin)
+  body:
+    username: string              # required
+    password: string              # required, min 6 chars
+    role: string                  # required: admin | user | provider
+  response: User
+  status: 201
+
+update:
+  method: PUT
+  path: /api/v1/users/{id}
+  auth: Bearer JWT (admin)
+  params:
+    id: string
+  body:
+    role: string                  # admin | user | provider
+    is_active: boolean
+  response: User
+
+delete:
+  method: DELETE
+  path: /api/v1/users/{id}
+  auth: Bearer JWT (admin)
+  params:
+    id: string
+  response:
+    message: string               # "user deleted"
