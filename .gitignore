@@ -1,6 +1,8 @@
 # Binaries
 *.exe
 *.exe~
+backend/aigateway
+nul
 
 # Logs
 *.log
