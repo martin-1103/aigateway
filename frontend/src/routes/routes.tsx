@@ -1,8 +1,9 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom'
 import { AppLayout } from '@/components/layout'
-import { AuthGuard, LoginPage, useAuthStore } from '@/features/auth'
+import { AuthGuard, RoleGuard, LoginPage, useAuthStore } from '@/features/auth'
 import { DashboardPage } from '@/features/dashboard'
 import { OAuthPage } from '@/features/oauth'
+import { UsersPage } from '@/features/users'
 
 function AuthenticatedLayout() {
   const { user, logout } = useAuthStore()
@@ -42,6 +43,14 @@ export const router = createBrowserRouter([
       {
         path: 'oauth',
         element: <OAuthPage />,
+      },
+      {
+        path: 'users',
+        element: (
+          <RoleGuard allowed={['admin']}>
+            <UsersPage />
+          </RoleGuard>
+        ),
       },
     ],
   },
