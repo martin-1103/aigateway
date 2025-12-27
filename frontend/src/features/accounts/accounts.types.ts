@@ -2,7 +2,7 @@ export interface Provider {
   id: string
   name: string
   base_url: string
-  auth_type: string
+  supported_auth_types: string[]
   auth_strategy: string
   supported_models: string
   is_active: boolean

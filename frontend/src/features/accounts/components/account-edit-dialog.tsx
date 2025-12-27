@@ -8,8 +8,6 @@ import { useUpdateAccount } from '../hooks'
 import { updateAccountSchema, type UpdateAccountFormData } from '../accounts.schemas'
 import type { Account } from '../accounts.types'
 
-const PROVIDERS = ['antigravity', 'openai', 'glm'] as const
-
 interface AccountEditDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -29,7 +27,6 @@ export function AccountEditDialog({ open, onOpenChange, account }: AccountEditDi
   useEffect(() => {
     if (account) {
       reset({
-        provider_id: account.provider_id,
         label: account.label,
         auth_data: '',
         is_active: account.is_active,
@@ -47,7 +44,6 @@ export function AccountEditDialog({ open, onOpenChange, account }: AccountEditDi
     if (!account) return
 
     const payload = {
-      provider_id: data.provider_id,
       label: data.label,
       is_active: data.is_active,
       ...(data.auth_data ? { auth_data: data.auth_data } : {}),
@@ -66,19 +62,13 @@ export function AccountEditDialog({ open, onOpenChange, account }: AccountEditDi
       isSubmitting={updateMutation.isPending}
       submitLabel="Save Changes"
     >
-      <FormField label="Provider" error={errors.provider_id?.message}>
-        <select
-          {...register('provider_id')}
-          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-          aria-label="Select provider"
-        >
-          <option value="">Select a provider</option>
-          {PROVIDERS.map((provider) => (
-            <option key={provider} value={provider}>
-              {provider.charAt(0).toUpperCase() + provider.slice(1)}
-            </option>
-          ))}
-        </select>
+      <FormField label="Provider">
+        <Input
+          value={account?.provider_id || ''}
+          disabled
+          type="text"
+          placeholder="Provider"
+        />
       </FormField>
 
       <FormField label="Account Label" error={errors.label?.message}>
