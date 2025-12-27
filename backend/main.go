@@ -60,6 +60,7 @@ func main() {
 	// Initialize repositories
 	accountRepo := repositories.NewAccountRepository(db)
 	proxyRepo := repositories.NewProxyRepository(db)
+	providerRepo := repositories.NewProviderRepository(db)
 	statsRepo := repositories.NewStatsRepository(db)
 	modelMappingRepo := repositories.NewModelMappingRepository(db)
 	userRepo := repositories.NewUserRepository(db)
@@ -110,6 +111,7 @@ func main() {
 	// Initialize router service
 	routerService := services.NewRouterService(
 		registry,
+		providerRepo,
 		accountService,
 		proxyService,
 		oauthService,

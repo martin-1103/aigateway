@@ -3,11 +3,13 @@ package services
 import (
 	"context"
 	"fmt"
+	"log"
 	"time"
 
 	"aigateway-backend/auth/manager"
 	"aigateway-backend/models"
 	"aigateway-backend/providers"
+	"aigateway-backend/repositories"
 )
 
 // Request represents a unified request structure for the router
@@ -43,6 +45,7 @@ func DefaultRouterConfig() RouterConfig {
 // RouterService handles model-to-provider routing and orchestrates the execution pipeline
 type RouterService struct {
 	registry            *providers.Registry
+	providerRepo        *repositories.ProviderRepository
 	accountService      *AccountService
 	proxyService        *ProxyService
 	oauthService        *OAuthService
@@ -56,6 +59,7 @@ type RouterService struct {
 // NewRouterService creates a new router service instance
 func NewRouterService(
 	registry *providers.Registry,
+	providerRepo *repositories.ProviderRepository,
 	accountService *AccountService,
 	proxyService *ProxyService,
 	oauthService *OAuthService,
@@ -63,6 +67,7 @@ func NewRouterService(
 ) *RouterService {
 	return &RouterService{
 		registry:            registry,
+		providerRepo:        providerRepo,
 		accountService:      accountService,
 		proxyService:        proxyService,
 		oauthService:        oauthService,
@@ -193,18 +198,22 @@ func (s *RouterService) executeWithAccount(
 	}, nil
 }
 
-// ListProviders returns all registered providers
+// ListProviders returns all active providers from database
 func (s *RouterService) ListProviders() []ProviderInfo {
-	providerList := s.registry.ListActive()
-	result := make([]ProviderInfo, 0, len(providerList))
+	dbProviders, err := s.providerRepo.ListActive()
+	if err != nil {
+		log.Printf("error fetching providers from database: %v", err)
+		return []ProviderInfo{}
+	}
 
-	for _, p := range providerList {
+	result := make([]ProviderInfo, 0, len(dbProviders))
+	for _, p := range dbProviders {
 		result = append(result, ProviderInfo{
-			ID:       p.ID(),
-			Name:     p.Name(),
-			BaseURL:  "",
-			AuthType: p.AuthStrategy(),
-			IsActive: true,
+			ID:                 p.ID,
+			Name:               p.Name,
+			BaseURL:            p.BaseURL,
+			SupportedAuthTypes: p.SupportedAuthTypes,
+			IsActive:           p.IsActive,
 		})
 	}
 
@@ -213,9 +222,9 @@ func (s *RouterService) ListProviders() []ProviderInfo {
 
 // ProviderInfo represents provider information for API responses
 type ProviderInfo struct {
-	ID       string `json:"id"`
-	Name     string `json:"name"`
-	BaseURL  string `json:"base_url"`
-	AuthType string `json:"auth_type"`
-	IsActive bool   `json:"is_active"`
+	ID                 string   `json:"id"`
+	Name               string   `json:"name"`
+	BaseURL            string   `json:"base_url"`
+	SupportedAuthTypes []string `json:"supported_auth_types"`
+	IsActive           bool     `json:"is_active"`
 }
