@@ -30,6 +30,7 @@ type OAuthFlowService struct {
 	redis      *redis.Client
 	accountSvc *AccountService
 	repo       *repositories.AccountRepository
+	proxySvc   *ProxyService
 }
 
 // OAuthSession represents an OAuth flow session stored in Redis
@@ -78,11 +79,12 @@ type OAuthProviderInfo struct {
 }
 
 // NewOAuthFlowService creates a new OAuth flow service
-func NewOAuthFlowService(redis *redis.Client, accountSvc *AccountService, repo *repositories.AccountRepository) *OAuthFlowService {
+func NewOAuthFlowService(redis *redis.Client, accountSvc *AccountService, repo *repositories.AccountRepository, proxySvc *ProxyService) *OAuthFlowService {
 	return &OAuthFlowService{
 		redis:      redis,
 		accountSvc: accountSvc,
 		repo:       repo,
+		proxySvc:   proxySvc,
 	}
 }
 
@@ -207,7 +209,23 @@ func (s *OAuthFlowService) ExchangeCode(ctx context.Context, callbackURL string)
 		CreatedBy:  session.CreatedBy,
 	}
 
+	// Assign proxy permanently during registration
+	if s.proxySvc != nil {
+		proxy, err := s.proxySvc.SelectProxyForNewAccount(session.Provider)
+		if err != nil {
+			// Log warning but don't fail - account can work without proxy
+			// Admin should add more proxies if this happens frequently
+		} else {
+			account.ProxyID = &proxy.ID
+			account.ProxyURL = proxy.URL
+		}
+	}
+
 	if err := s.repo.Create(account); err != nil {
+		// Rollback proxy assignment if account creation fails
+		if account.ProxyID != nil {
+			s.proxySvc.ReleaseProxyAssignment(*account.ProxyID)
+		}
 		return nil, fmt.Errorf("failed to create account: %w", err)
 	}
 

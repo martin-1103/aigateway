@@ -30,18 +30,16 @@ type TokenResponse struct {
 }
 
 type OAuthService struct {
-	redis      *redis.Client
-	repo       *repositories.AccountRepository
-	httpClient *http.Client
+	redis             *redis.Client
+	repo              *repositories.AccountRepository
+	httpClientService *HTTPClientService
 }
 
-func NewOAuthService(redis *redis.Client, repo *repositories.AccountRepository) *OAuthService {
+func NewOAuthService(redis *redis.Client, repo *repositories.AccountRepository, httpClientService *HTTPClientService) *OAuthService {
 	return &OAuthService{
-		redis: redis,
-		repo:  repo,
-		httpClient: &http.Client{
-			Timeout: 30 * time.Second,
-		},
+		redis:             redis,
+		repo:              repo,
+		httpClientService: httpClientService,
 	}
 }
 
@@ -83,7 +81,7 @@ func (s *OAuthService) GetAccessToken(account *models.Account) (string, error) {
 			return "", fmt.Errorf("token expired and no refresh token available")
 		}
 
-		newAccessToken, newExpiresAt, err := s.refreshToken(account.ProviderID, refreshToken)
+		newAccessToken, newExpiresAt, err := s.refreshToken(account.ProviderID, refreshToken, account.ProxyURL)
 		if err != nil {
 			return "", fmt.Errorf("token refresh failed: %w", err)
 		}
@@ -117,7 +115,7 @@ func (s *OAuthService) GetAccessToken(account *models.Account) (string, error) {
 	return accessToken, nil
 }
 
-func (s *OAuthService) refreshToken(providerID string, refreshToken string) (string, time.Time, error) {
+func (s *OAuthService) refreshToken(providerID string, refreshToken string, proxyURL string) (string, time.Time, error) {
 	var clientID, clientSecret, tokenURL string
 
 	switch providerID {
@@ -141,7 +139,8 @@ func (s *OAuthService) refreshToken(providerID string, refreshToken string) (str
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
-	resp, err := s.httpClient.Do(req)
+	httpClient := s.httpClientService.GetClient(proxyURL)
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		return "", time.Time{}, err
 	}

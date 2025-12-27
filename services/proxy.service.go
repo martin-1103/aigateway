@@ -1,23 +1,32 @@
 package services
 
 import (
+	"aigateway/config"
 	"aigateway/models"
 	"aigateway/repositories"
+	"fmt"
 	"sync"
+	"time"
 )
 
 // ProxyService handles proxy assignment and management operations
 type ProxyService struct {
-	repo        *repositories.ProxyRepository
-	accountRepo *repositories.AccountRepository
-	mu          sync.RWMutex
+	repo                 *repositories.ProxyRepository
+	accountRepo          *repositories.AccountRepository
+	mu                   sync.RWMutex
+	downRecoveryDelay    time.Duration
 }
 
 // NewProxyService creates a new proxy service instance
-func NewProxyService(repo *repositories.ProxyRepository, accountRepo *repositories.AccountRepository) *ProxyService {
+func NewProxyService(repo *repositories.ProxyRepository, accountRepo *repositories.AccountRepository, cfg *config.ProxyConfig) *ProxyService {
+	recoveryDelay := 24 * time.Hour // default 24h
+	if cfg != nil && cfg.DownRecoveryDelayMin > 0 {
+		recoveryDelay = time.Duration(cfg.DownRecoveryDelayMin) * time.Minute
+	}
 	return &ProxyService{
-		repo:        repo,
-		accountRepo: accountRepo,
+		repo:              repo,
+		accountRepo:       accountRepo,
+		downRecoveryDelay: recoveryDelay,
 	}
 }
 
@@ -128,4 +137,89 @@ func (s *ProxyService) GetAssignments() (map[int][]string, error) {
 // RecalculateCounts recalculates the account counts for all proxies
 func (s *ProxyService) RecalculateCounts() error {
 	return s.repo.RecalculateAccountCounts()
+}
+
+// SelectProxyForNewAccount selects and assigns a proxy for a new account during registration
+// Returns the selected proxy or error if no proxy available
+func (s *ProxyService) SelectProxyForNewAccount(providerID string) (*models.Proxy, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	proxies, err := s.repo.GetActiveByProvider(providerID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get proxies: %w", err)
+	}
+
+	if len(proxies) == 0 {
+		return nil, fmt.Errorf("no active proxies available for provider %s", providerID)
+	}
+
+	// Find proxy with capacity, prefer healthy ones
+	for _, proxy := range proxies {
+		if s.hasCapacity(proxy) && s.isProxyAvailableForAssignment(proxy) {
+			s.repo.IncrementAccountCount(proxy.ID)
+			return proxy, nil
+		}
+	}
+
+	return nil, fmt.Errorf("all proxies at capacity for provider %s", providerID)
+}
+
+// IsProxyAvailableForRequest checks if account's proxy is available for making requests
+// Returns true if proxy is usable, false if should skip this account
+func (s *ProxyService) IsProxyAvailableForRequest(proxyID int) bool {
+	proxy, err := s.repo.GetByID(proxyID)
+	if err != nil {
+		return false
+	}
+
+	if !proxy.IsActive {
+		return false
+	}
+
+	// Healthy or degraded proxies are available
+	if proxy.HealthStatus != models.HealthStatusDown {
+		return true
+	}
+
+	// Down proxies: check if recovery delay has passed
+	return s.hasRecoveryDelayPassed(proxy)
+}
+
+// isProxyAvailableForAssignment checks if proxy can be assigned to new accounts
+func (s *ProxyService) isProxyAvailableForAssignment(proxy *models.Proxy) bool {
+	if !proxy.IsActive {
+		return false
+	}
+
+	// Only assign to healthy proxies for new accounts
+	if proxy.HealthStatus == models.HealthStatusDown {
+		return false
+	}
+
+	return true
+}
+
+// hasRecoveryDelayPassed checks if enough time has passed since proxy was marked down
+func (s *ProxyService) hasRecoveryDelayPassed(proxy *models.Proxy) bool {
+	if proxy.MarkedDownAt == nil {
+		return true
+	}
+	return time.Since(*proxy.MarkedDownAt) >= s.downRecoveryDelay
+}
+
+// MarkProxyDown marks a proxy as down with timestamp
+func (s *ProxyService) MarkProxyDown(proxyID int) error {
+	now := time.Now()
+	return s.repo.UpdateHealthWithDownTime(proxyID, models.HealthStatusDown, &now)
+}
+
+// MarkProxyHealthy marks a proxy as healthy and clears down timestamp
+func (s *ProxyService) MarkProxyHealthy(proxyID int, latencyMs int) error {
+	return s.repo.UpdateHealthWithDownTime(proxyID, models.HealthStatusHealthy, nil)
+}
+
+// ReleaseProxyAssignment decrements account count when account creation fails
+func (s *ProxyService) ReleaseProxyAssignment(proxyID int) error {
+	return s.repo.DecrementAccountCount(proxyID)
 }
