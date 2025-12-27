@@ -61,10 +61,12 @@ func main() {
 	apiKeyRepo := repositories.NewAPIKeyRepository(db)
 
 	// Initialize core services
+	httpClientService := services.NewHTTPClientService()
 	accountService := services.NewAccountService(accountRepo, redis)
-	proxyService := services.NewProxyService(proxyRepo, accountRepo)
-	oauthService := services.NewOAuthService(redis, accountRepo)
-	oauthFlowService := services.NewOAuthFlowService(redis, accountService, accountRepo)
+	proxyService := services.NewProxyService(proxyRepo, accountRepo, &cfg.Proxy)
+	accountService.SetProxyService(proxyService) // Wire proxy service for availability checks
+	oauthService := services.NewOAuthService(redis, accountRepo, httpClientService)
+	oauthFlowService := services.NewOAuthFlowService(redis, accountService, accountRepo, proxyService)
 
 	// Initialize and start token refresh service (legacy)
 	tokenRefreshService := services.NewTokenRefreshService(accountRepo, redis)
