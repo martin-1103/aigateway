@@ -1,26 +1,16 @@
 #!/bin/bash
 
-echo "=== Finding process on port 8088 ==="
-PID=$(netstat -ano | grep ":8088" | grep LISTENING | awk '{print $NF}' | head -1)
+echo "=== Killing all aigateway-backend processes ==="
+powershell -Command "Get-Process aigateway-backend -ErrorAction SilentlyContinue | Stop-Process -Force" 2>/dev/null || true
+sleep 2
 
-if [ -n "$PID" ]; then
-  echo "Found process $PID using port 8088"
-
-  echo "Killing process $PID using taskkill..."
-  taskkill /PID $PID /F 2>/dev/null || taskkill //PID $PID //F 2>/dev/null || true
-  sleep 2
-
-  # Check if still running
-  STILL_RUNNING=$(netstat -ano 2>/dev/null | grep ":8088" | grep LISTENING | awk '{print $NF}' | head -1)
-  if [ -n "$STILL_RUNNING" ]; then
-    echo "❌ FAILED: Process still running on port 8088 (PID: $STILL_RUNNING)"
-    echo "Cannot proceed. Please manually kill the process."
-    exit 1
-  fi
-  echo "✓ Process killed successfully"
-else
-  echo "No process found on port 8088"
+# Verify all killed
+REMAINING=$(tasklist 2>/dev/null | grep -i "aigateway-backend" | wc -l)
+if [ "$REMAINING" -gt 0 ]; then
+  echo "❌ FAILED: $REMAINING aigateway-backend processes still running"
+  exit 1
 fi
+echo "✓ All aigateway-backend processes killed"
 
 echo ""
 echo "=== Building backend ==="
