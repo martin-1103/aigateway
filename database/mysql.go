@@ -45,5 +45,6 @@ func AutoMigrate(db *gorm.DB) error {
 		&models.ModelMapping{},
 		&models.User{},
 		&models.APIKey{},
+		&models.AccountQuotaPattern{},
 	)
 }

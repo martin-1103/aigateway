@@ -72,6 +72,14 @@ func (l *StateLogger) LogAllBlocked(providerID, model string, retryAt time.Time)
 		l.prefix, providerID, model, retryAt.Format(time.RFC3339))
 }
 
+// LogQuotaExhausted logs when an account's quota is exhausted
+func (l *StateLogger) LogQuotaExhausted(accountID, model string) {
+	if !l.enabled {
+		return
+	}
+	log.Printf("%s Quota exhausted: account=%s model=%s", l.prefix, accountID, model)
+}
+
 // LogSuccess logs a successful request
 func (l *StateLogger) LogSuccess(accountID, model string) {
 	if !l.enabled {

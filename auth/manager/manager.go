@@ -13,6 +13,19 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
+// QuotaTracker interface for quota tracking (avoid circular import)
+type QuotaTracker interface {
+	RecordUsage(accountID, model string, tokens int64)
+	MarkExhausted(accountID, model string)
+	IsAvailable(accountID, model string) bool
+	GetEarliestReset(accountIDs []string, model string) *time.Time
+}
+
+// TokenExtractor interface for extracting tokens from response
+type TokenExtractor interface {
+	ExtractTokens(providerID string, payload []byte) int64
+}
+
 // Manager manages account states for all providers
 type Manager struct {
 	accounts map[string]*AccountState // key: account ID
@@ -27,6 +40,10 @@ type Manager struct {
 
 	// Token refreshers per provider
 	refreshers map[string]TokenRefresher
+
+	// Quota tracking
+	quotaTracker   QuotaTracker
+	tokenExtractor TokenExtractor
 
 	// Background refresh control
 	refreshCancel context.CancelFunc
@@ -83,6 +100,14 @@ func (m *Manager) RegisterRefresher(providerID string, refresher TokenRefresher)
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.refreshers[providerID] = refresher
+}
+
+// SetQuotaTracker sets the quota tracker for usage tracking
+func (m *Manager) SetQuotaTracker(tracker QuotaTracker, extractor TokenExtractor) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.quotaTracker = tracker
+	m.tokenExtractor = extractor
 }
 
 // LoadAccounts loads accounts from database into manager
@@ -152,6 +177,12 @@ func (m *Manager) MarkResult(accountID, model string, statusCode int, body []byt
 		acc.MarkSuccess(model, now)
 		m.logger.LogSuccess(accountID, model)
 		m.metrics.UpdateAccountHealth(acc)
+
+		// Track quota usage (extract tokens from response)
+		if m.quotaTracker != nil && m.tokenExtractor != nil {
+			tokens := m.tokenExtractor.ExtractTokens(acc.Account.ProviderID, body)
+			m.quotaTracker.RecordUsage(accountID, model, tokens)
+		}
 		return
 	}
 
@@ -159,6 +190,12 @@ func (m *Manager) MarkResult(accountID, model string, statusCode int, body []byt
 	parser := m.getParser(acc.Account.ProviderID)
 	parsed := parser.Parse(statusCode, body)
 	acc.MarkFailure(model, parsed, now)
+
+	// Check for quota exhaustion
+	if parsed.Type == errors.ErrTypeQuotaExceeded && m.quotaTracker != nil {
+		m.quotaTracker.MarkExhausted(accountID, model)
+		m.logger.LogQuotaExhausted(accountID, model)
+	}
 
 	// Log and record metrics
 	m.logger.LogFailure(accountID, model, parsed)

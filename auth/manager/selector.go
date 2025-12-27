@@ -16,6 +16,31 @@ func (e *AllBlockedError) Error() string {
 	return e.Message
 }
 
+// AllExhaustedError returned when all accounts have exhausted quota
+type AllExhaustedError struct {
+	ResetAt      *time.Time // Earliest quota reset time
+	AccountCount int        // Number of exhausted accounts
+}
+
+func (e *AllExhaustedError) Error() string {
+	if e.ResetAt != nil {
+		return fmt.Sprintf("all %d accounts quota exhausted, resets at %v", e.AccountCount, e.ResetAt)
+	}
+	return fmt.Sprintf("all %d accounts quota exhausted", e.AccountCount)
+}
+
+// WaitDuration returns duration until quota resets
+func (e *AllExhaustedError) WaitDuration() time.Duration {
+	if e.ResetAt == nil {
+		return 0
+	}
+	dur := time.Until(*e.ResetAt)
+	if dur < 0 {
+		return 0
+	}
+	return dur
+}
+
 // getCandidates returns accounts for given provider
 func (m *Manager) getCandidates(providerID string) []*AccountState {
 	candidates := make([]*AccountState, 0)
@@ -33,10 +58,12 @@ func (m *Manager) getCandidates(providerID string) []*AccountState {
 func (m *Manager) selectBest(candidates []*AccountState, model string) (*AccountState, error) {
 	now := time.Now()
 	available := make([]*AccountState, 0)
+	quotaExhausted := make([]string, 0) // Track exhausted account IDs for reset time
 	var earliestRetry time.Time
 
 	// Filter available accounts
 	for _, acc := range candidates {
+		// Check if blocked by error/cooldown
 		blocked, _ := acc.IsBlockedFor(model, now)
 		if blocked {
 			retryTime := acc.GetNextRetryTime(model)
@@ -47,10 +74,26 @@ func (m *Manager) selectBest(candidates []*AccountState, model string) (*Account
 			}
 			continue
 		}
+
+		// Check if quota exhausted (if quota tracker is configured)
+		if m.quotaTracker != nil && !m.quotaTracker.IsAvailable(acc.Account.ID, model) {
+			quotaExhausted = append(quotaExhausted, acc.Account.ID)
+			continue
+		}
+
 		available = append(available, acc)
 	}
 
 	if len(available) == 0 {
+		// Check if all are quota exhausted vs blocked
+		if len(quotaExhausted) > 0 && m.quotaTracker != nil {
+			resetAt := m.quotaTracker.GetEarliestReset(quotaExhausted, model)
+			return nil, &AllExhaustedError{
+				ResetAt:      resetAt,
+				AccountCount: len(quotaExhausted),
+			}
+		}
+
 		return nil, &AllBlockedError{
 			WaitDuration: earliestRetry,
 			Message:      fmt.Sprintf("all accounts blocked, retry at %v", earliestRetry),
