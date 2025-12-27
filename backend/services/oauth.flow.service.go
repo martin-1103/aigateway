@@ -1,6 +1,7 @@
 package services
 
 import (
+	"aigateway-backend/auth/manager"
 	"aigateway-backend/auth/oauth"
 	"aigateway-backend/auth/pkce"
 	"aigateway-backend/models"
@@ -8,6 +9,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"net/url"
 	"strings"
@@ -27,10 +29,11 @@ const (
 
 // OAuthFlowService handles OAuth authorization flow
 type OAuthFlowService struct {
-	redis      *redis.Client
-	accountSvc *AccountService
-	repo       *repositories.AccountRepository
-	proxySvc   *ProxyService
+	redis       *redis.Client
+	accountSvc  *AccountService
+	repo        *repositories.AccountRepository
+	proxySvc    *ProxyService
+	authManager *manager.Manager
 }
 
 // OAuthSession represents an OAuth flow session stored in Redis
@@ -88,6 +91,11 @@ func NewOAuthFlowService(redis *redis.Client, accountSvc *AccountService, repo *
 	}
 }
 
+// SetAuthManager sets the auth manager for hot-reload
+func (s *OAuthFlowService) SetAuthManager(m *manager.Manager) {
+	s.authManager = m
+}
+
 // InitFlow starts OAuth authorization flow
 func (s *OAuthFlowService) InitFlow(ctx context.Context, req *InitFlowRequest) (*InitFlowResponse, error) {
 	if req.FlowType != "auto" && req.FlowType != "manual" {
@@ -143,6 +151,7 @@ func (s *OAuthFlowService) InitFlow(ctx context.Context, req *InitFlowRequest) (
 		ExpiresAt: time.Now().Add(OAuthSessionTTL),
 	}, nil
 }
+
 
 // ExchangeCode exchanges authorization code from callback URL
 func (s *OAuthFlowService) ExchangeCode(ctx context.Context, callbackURL string) (*ExchangeResponse, error) {
@@ -208,10 +217,21 @@ func (s *OAuthFlowService) ExchangeCode(ctx context.Context, callbackURL string)
 		return nil, fmt.Errorf("failed to marshal metadata: %w", err)
 	}
 
+	// Fetch user info from Google's userinfo endpoint to get email
+	userInfo, err := providerOAuth.GetUserInfo(ctx, tokenResp.AccessToken)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user info: %w", err)
+	}
+
+	email, ok := userInfo["email"].(string)
+	if !ok || email == "" {
+		return nil, fmt.Errorf("email not found in user info")
+	}
+
 	account := &models.Account{
 		ID:         uuid.New().String(),
 		ProviderID: session.Provider,
-		Label:      session.ProjectID,
+		Label:      email,
 		AuthData:   string(authDataJSON),
 		Metadata:   string(metadataJSON),
 		IsActive:   true,
@@ -237,6 +257,12 @@ func (s *OAuthFlowService) ExchangeCode(ctx context.Context, callbackURL string)
 			s.proxySvc.ReleaseProxyAssignment(*account.ProxyID)
 		}
 		return nil, fmt.Errorf("failed to create account: %w", err)
+	}
+
+	// Hot-reload: Add to AuthManager immediately (non-blocking)
+	if s.authManager != nil {
+		s.authManager.AddAccount(account)
+		log.Printf("[OAuth] Hot-reload: Added account %s to AuthManager", account.ID)
 	}
 
 	s.redis.Del(ctx, sessionKey)

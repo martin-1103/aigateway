@@ -48,6 +48,9 @@ type Manager struct {
 	// Background refresh control
 	refreshCancel context.CancelFunc
 
+	// Background reconciliation control
+	reconcileCancel context.CancelFunc
+
 	// Observability
 	metrics *Metrics
 	logger  *StateLogger

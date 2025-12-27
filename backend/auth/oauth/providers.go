@@ -19,7 +19,8 @@ const (
 	AntigravityTokenURL = antigravity.OAuthTokenURL
 	AntigravityClientID = antigravity.OAuthClientID
 	AntigravitySecret   = antigravity.OAuthClientSecret
-	AntigravityScope    = "https://www.googleapis.com/auth/cloudcode"
+	AntigravityScope    = "https://www.googleapis.com/auth/cloud-platform https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile"
+	GoogleUserInfoURL   = "https://www.googleapis.com/oauth2/v1/userinfo?alt=json"
 
 	// OpenAI Codex OAuth config
 	CodexAuthURL  = "https://auth.openai.com/oauth/authorize"
@@ -198,6 +199,43 @@ func (p *ProviderOAuth) ExchangeCode(ctx context.Context, code string, pkceCodes
 	}
 
 	return &tokenResp, nil
+}
+
+// GetUserInfo fetches user info from Google's userinfo endpoint
+func (p *ProviderOAuth) GetUserInfo(ctx context.Context, accessToken string) (map[string]interface{}, error) {
+	if p.ProviderID != "antigravity" {
+		return nil, fmt.Errorf("userinfo endpoint only supported for antigravity provider")
+	}
+
+	req, err := http.NewRequestWithContext(ctx, "GET", GoogleUserInfoURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create userinfo request: %w", err)
+	}
+
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", accessToken))
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := p.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("userinfo request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read userinfo response: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("userinfo request failed with status %d: %s", resp.StatusCode, string(respBody))
+	}
+
+	var userInfo map[string]interface{}
+	if err := json.Unmarshal(respBody, &userInfo); err != nil {
+		return nil, fmt.Errorf("failed to parse userinfo response: %w", err)
+	}
+
+	return userInfo, nil
 }
 
 // GetProviderOAuth returns OAuth config for a provider ID
