@@ -26,7 +26,7 @@ function formatDate(dateString: string | undefined): string {
 }
 
 export function ApiKeysTable() {
-  const { data: apiKeys, isLoading, error } = useApiKeysQuery()
+  const { data: response, isLoading, error } = useApiKeysQuery()
   const [revokeKey, setRevokeKey] = useState<ApiKey | null>(null)
 
   if (isLoading) {
@@ -41,6 +41,7 @@ export function ApiKeysTable() {
     )
   }
 
+  const apiKeys = response?.data ?? []
   if (!apiKeys?.length) {
     return (
       <div className="text-center py-8 text-muted-foreground">
@@ -65,11 +66,16 @@ export function ApiKeysTable() {
           <TableBody>
             {apiKeys.map((apiKey) => (
               <TableRow key={apiKey.id}>
-                <TableCell className="font-medium">{apiKey.name}</TableCell>
+                <TableCell className="font-medium">{apiKey.label || 'Unnamed'}</TableCell>
                 <TableCell>
                   <code className="px-2 py-1 bg-muted rounded text-sm">
                     {apiKey.key_prefix}...
                   </code>
+                </TableCell>
+                <TableCell>
+                  <span className={apiKey.is_active ? 'text-green-600' : 'text-red-600'}>
+                    {apiKey.is_active ? 'Active' : 'Revoked'}
+                  </span>
                 </TableCell>
                 <TableCell>{formatDate(apiKey.created_at)}</TableCell>
                 <TableCell>{formatDate(apiKey.last_used_at)}</TableCell>
@@ -78,7 +84,8 @@ export function ApiKeysTable() {
                     variant="ghost"
                     size="icon"
                     onClick={() => setRevokeKey(apiKey)}
-                    aria-label={`Revoke API key ${apiKey.name}`}
+                    aria-label={`Revoke API key ${apiKey.label}`}
+                    disabled={!apiKey.is_active}
                   >
                     <Trash2 className="h-4 w-4 text-destructive" />
                   </Button>
