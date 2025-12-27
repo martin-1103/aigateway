@@ -101,14 +101,14 @@ export function ApiKeyCreateDialog({ open, onClose }: ApiKeyCreateDialogProps) {
         ) : (
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="name">Name</Label>
+              <Label htmlFor="label">Label</Label>
               <Input
-                id="name"
-                placeholder="My API Key"
-                {...register('name')}
+                id="label"
+                placeholder="e.g., Production Server"
+                {...register('label')}
               />
-              {errors.name && (
-                <p className="text-sm text-destructive">{errors.name.message}</p>
+              {errors.label && (
+                <p className="text-sm text-destructive">{errors.label.message}</p>
               )}
             </div>
             <DialogFooter>

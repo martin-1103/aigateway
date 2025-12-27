@@ -33,7 +33,7 @@ export function ApiKeyRevokeDialog({ apiKey, onClose }: ApiKeyRevokeDialogProps)
         <DialogHeader>
           <DialogTitle>Revoke API Key</DialogTitle>
           <DialogDescription>
-            Are you sure you want to revoke the API key "{apiKey?.name}"? This
+            Are you sure you want to revoke the API key "{apiKey?.label || 'Unnamed'}"? This
             action cannot be undone and any applications using this key will
             stop working.
           </DialogDescription>

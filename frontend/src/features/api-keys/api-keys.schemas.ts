@@ -1,10 +1,10 @@
 import { z } from 'zod'
 
 export const createApiKeySchema = z.object({
-  name: z
+  label: z
     .string()
-    .min(1, 'Name is required')
-    .max(100, 'Name must be at most 100 characters'),
+    .min(1, 'Label is required')
+    .max(100, 'Label must be at most 100 characters'),
 })
 
 export type CreateApiKeyFormData = z.infer<typeof createApiKeySchema>
