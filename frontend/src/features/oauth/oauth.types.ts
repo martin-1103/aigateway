@@ -1,8 +1,6 @@
 export interface OAuthProvider {
   id: string
   name: string
-  auth_url: string
-  scopes: string[]
 }
 
 export interface OAuthProvidersResponse {

@@ -79,22 +79,6 @@ export function OAuthInitDialog({
               />
             </div>
 
-            {Array.isArray(provider.scopes) && provider.scopes.length > 0 && (
-              <div className="space-y-2">
-                <Label>Requested Scopes</Label>
-                <div className="flex flex-wrap gap-2">
-                  {provider.scopes.map((scope) => (
-                    <span
-                      key={scope}
-                      className="rounded-md bg-secondary px-2 py-1 text-xs"
-                    >
-                      {scope}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-
             <DialogFooter>
               <Button
                 type="button"

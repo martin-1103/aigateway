@@ -58,9 +58,7 @@ export function OAuthProvidersList({
           <CardHeader>
             <CardTitle className="text-lg">{provider.name}</CardTitle>
             <CardDescription>
-              {Array.isArray(provider.scopes) && provider.scopes.length > 0
-                ? `Scopes: ${provider.scopes.join(', ')}`
-                : 'No scopes configured'}
+              Click to start OAuth authentication
             </CardDescription>
           </CardHeader>
           <CardContent>

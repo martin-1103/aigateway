@@ -1,9 +1,12 @@
 export type Role = 'admin' | 'user' | 'provider'
 
-export interface User {
+export interface MeResponse {
   id: string
   username: string
   role: Role
+}
+
+export interface User extends MeResponse {
   is_active: boolean
   created_at: string
   updated_at: string
