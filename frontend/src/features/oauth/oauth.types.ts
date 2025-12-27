@@ -10,7 +10,8 @@ export interface OAuthProvidersResponse {
 
 export interface InitOAuthRequest {
   provider: string
-  account_id: string
+  project_id: string
+  flow_type?: string
 }
 
 export interface InitOAuthResponse {

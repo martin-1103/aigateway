@@ -37,7 +37,7 @@ export function OAuthProvidersList({
     )
   }
 
-  if (providers.length === 0) {
+  if (!Array.isArray(providers) || providers.length === 0) {
     return (
       <Card>
         <CardContent className="py-8 text-center text-muted-foreground">
@@ -58,7 +58,7 @@ export function OAuthProvidersList({
           <CardHeader>
             <CardTitle className="text-lg">{provider.name}</CardTitle>
             <CardDescription>
-              {provider.scopes.length > 0
+              {Array.isArray(provider.scopes) && provider.scopes.length > 0
                 ? `Scopes: ${provider.scopes.join(', ')}`
                 : 'No scopes configured'}
             </CardDescription>

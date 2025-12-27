@@ -17,15 +17,16 @@ interface ColumnsProps {
 export function getAccountColumns({ onEdit, onDelete }: ColumnsProps): ColumnDef<Account>[] {
   return [
     {
-      accessorKey: 'email',
-      header: 'Email',
+      accessorKey: 'label',
+      header: 'Label',
     },
     {
-      accessorKey: 'provider',
+      accessorKey: 'provider_id',
       header: 'Provider',
-      cell: ({ row }) => (
-        <span className="capitalize">{row.getValue('provider')}</span>
-      ),
+      cell: ({ row }) => {
+        const account = row.original
+        return <span>{account.provider?.name || account.provider_id}</span>
+      },
     },
     {
       accessorKey: 'is_active',

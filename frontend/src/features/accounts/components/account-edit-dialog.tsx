@@ -29,8 +29,8 @@ export function AccountEditDialog({ open, onOpenChange, account }: AccountEditDi
   useEffect(() => {
     if (account) {
       reset({
-        provider: account.provider,
-        email: account.email,
+        provider: account.provider_id,
+        email: account.label,
         credentials: '',
         is_active: account.is_active,
       })

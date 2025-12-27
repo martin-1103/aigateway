@@ -24,21 +24,22 @@ export function OAuthInitDialog({
   open,
   onOpenChange,
 }: OAuthInitDialogProps) {
-  const [accountId, setAccountId] = useState('')
+  const [projectId, setProjectId] = useState('')
   const { mutate, isPending } = useInitOAuthFlow()
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!provider || !accountId.trim()) return
+    if (!provider || !projectId.trim()) return
 
     mutate({
       provider: provider.name,
-      account_id: accountId.trim(),
+      project_id: projectId.trim(),
+      flow_type: 'auto',
     })
   }
 
   const handleClose = () => {
-    setAccountId('')
+    setProjectId('')
     onOpenChange(false)
   }
 
@@ -49,7 +50,7 @@ export function OAuthInitDialog({
           <DialogTitle>Initialize OAuth Flow</DialogTitle>
           <DialogDescription>
             {provider
-              ? `Start OAuth authentication for ${provider.name}. Enter the account ID to associate with this OAuth token.`
+              ? `Start OAuth authentication for ${provider.name}. Enter a project ID to track quota usage for this account.`
               : 'Select a provider to continue.'}
           </DialogDescription>
         </DialogHeader>
@@ -67,18 +68,18 @@ export function OAuthInitDialog({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="account-id">Account ID</Label>
+              <Label htmlFor="project-id">Project ID</Label>
               <Input
-                id="account-id"
-                value={accountId}
-                onChange={(e) => setAccountId(e.target.value)}
-                placeholder="Enter account ID"
+                id="project-id"
+                value={projectId}
+                onChange={(e) => setProjectId(e.target.value)}
+                placeholder="e.g., my-project, project-123, etc."
                 required
                 aria-required="true"
               />
             </div>
 
-            {provider.scopes.length > 0 && (
+            {Array.isArray(provider.scopes) && provider.scopes.length > 0 && (
               <div className="space-y-2">
                 <Label>Requested Scopes</Label>
                 <div className="flex flex-wrap gap-2">
@@ -103,7 +104,7 @@ export function OAuthInitDialog({
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={isPending || !accountId.trim()}>
+              <Button type="submit" disabled={isPending || !projectId.trim()}>
                 {isPending ? 'Redirecting...' : 'Start OAuth Flow'}
               </Button>
             </DialogFooter>

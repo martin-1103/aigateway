@@ -1,6 +1,8 @@
+import { useEffect, useState } from 'react'
 import { createBrowserRouter, Navigate } from 'react-router-dom'
 import { AppLayout } from '@/components/layout'
 import { AuthGuard, RoleGuard, LoginPage, useAuthStore } from '@/features/auth'
+import { getMe } from '@/features/auth/api/get-me.api'
 import { DashboardPage } from '@/features/dashboard'
 import { UsersPage } from '@/features/users'
 import { AccountsPage } from '@/features/accounts'
@@ -11,9 +13,37 @@ import { ModelMappingsPage } from '@/features/model-mappings'
 import { OAuthPage } from '@/features/oauth'
 
 function AuthenticatedLayout() {
-  const { user, logout } = useAuthStore()
+  const { user, logout, isAuthenticated, setAuth } = useAuthStore()
+  const [loading, setLoading] = useState(false)
 
-  if (!user) return null
+  useEffect(() => {
+    if (isAuthenticated && !user) {
+      setLoading(true)
+      getMe()
+        .then((userData) => {
+          // Get token from store to pass to setAuth
+          const state = useAuthStore.getState()
+          if (state.token) {
+            setAuth(state.token, userData)
+          }
+        })
+        .catch(() => {
+          // If fetching user fails, redirect to login
+          useAuthStore.getState().logout()
+        })
+        .finally(() => {
+          setLoading(false)
+        })
+    }
+  }, [isAuthenticated, user, setAuth])
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />
+  }
+
+  if (!user || loading) {
+    return <div className="min-h-screen bg-background" />
+  }
 
   return (
     <AppLayout

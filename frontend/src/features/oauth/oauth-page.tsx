@@ -41,7 +41,7 @@ export function OAuthPage() {
       </div>
 
       <OAuthProvidersList
-        providers={data?.providers ?? []}
+        providers={Array.isArray(data?.providers) ? data.providers : []}
         onSelectProvider={handleSelectProvider}
         isLoading={isLoading}
       />

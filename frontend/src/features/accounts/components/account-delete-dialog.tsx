@@ -39,7 +39,7 @@ export function AccountDeleteDialog({
           <DialogTitle>Delete Account</DialogTitle>
           <DialogDescription>
             Are you sure you want to delete the account{' '}
-            <strong>{account?.email}</strong>? This action cannot be undone.
+            <strong>{account?.label}</strong>? This action cannot be undone.
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
