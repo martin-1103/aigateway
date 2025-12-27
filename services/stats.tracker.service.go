@@ -129,3 +129,121 @@ func (s *StatsTrackerService) CleanupOldLogs(days int) error {
 	before := time.Now().AddDate(0, 0, -days)
 	return s.repo.DeleteOldLogs(before)
 }
+
+// RecordRequestWithRetry records a request with retry and account switch information
+func (s *StatsTrackerService) RecordRequestWithRetry(
+	accountID *string,
+	proxyID *int,
+	providerID *string,
+	model string,
+	statusCode, latencyMs int,
+	retryCount int,
+	switchedFromAccountID *string,
+) {
+	log := &models.RequestLog{
+		AccountID:             accountID,
+		ProxyID:               proxyID,
+		ProviderID:            providerID,
+		Model:                 model,
+		StatusCode:            statusCode,
+		LatencyMs:             latencyMs,
+		RetryCount:            retryCount,
+		SwitchedFromAccountID: switchedFromAccountID,
+		CreatedAt:             time.Now(),
+	}
+
+	go s.repo.CreateRequestLog(log)
+
+	if proxyID != nil {
+		success := statusCode >= 200 && statusCode < 300
+		go s.repo.IncrementProxyStats(*proxyID, providerID, success, latencyMs)
+
+		if success {
+			go s.healthService.MarkHealthy(*proxyID, latencyMs)
+		} else {
+			go s.healthService.MarkDegraded(*proxyID, latencyMs)
+		}
+
+		s.updateRedisCounters(*proxyID, success)
+	}
+
+	// Track retry and switch metrics in Redis
+	if retryCount > 0 {
+		s.incrementRetryCounter()
+	}
+	if switchedFromAccountID != nil {
+		s.incrementSwitchCounter()
+	}
+}
+
+// RecordFailureWithRetry records a failed request with retry information
+func (s *StatsTrackerService) RecordFailureWithRetry(
+	accountID *string,
+	proxyID *int,
+	latencyMs int,
+	err error,
+	retryCount int,
+	switchedFromAccountID *string,
+) {
+	log := &models.RequestLog{
+		AccountID:             accountID,
+		ProxyID:               proxyID,
+		StatusCode:            0,
+		LatencyMs:             latencyMs,
+		RetryCount:            retryCount,
+		SwitchedFromAccountID: switchedFromAccountID,
+		Error:                 err.Error(),
+		CreatedAt:             time.Now(),
+	}
+
+	go s.repo.CreateRequestLog(log)
+
+	if proxyID != nil {
+		go s.healthService.MarkDown(*proxyID, latencyMs)
+	}
+
+	if retryCount > 0 {
+		s.incrementRetryCounter()
+	}
+	if switchedFromAccountID != nil {
+		s.incrementSwitchCounter()
+	}
+}
+
+// incrementRetryCounter increments the global retry counter in Redis
+func (s *StatsTrackerService) incrementRetryCounter() {
+	ctx := context.Background()
+	key := "stats:global:retries:today"
+	s.redis.Incr(ctx, key)
+	s.redis.Expire(ctx, key, 24*time.Hour)
+}
+
+// incrementSwitchCounter increments the global account switch counter in Redis
+func (s *StatsTrackerService) incrementSwitchCounter() {
+	ctx := context.Background()
+	key := "stats:global:account_switches:today"
+	s.redis.Incr(ctx, key)
+	s.redis.Expire(ctx, key, 24*time.Hour)
+}
+
+// GetTodayRetryCount retrieves the retry count for today
+func (s *StatsTrackerService) GetTodayRetryCount() (int64, error) {
+	ctx := context.Background()
+	key := "stats:global:retries:today"
+	count, err := s.redis.Get(ctx, key).Int64()
+	if err == redis.Nil {
+		return 0, nil
+	}
+	return count, err
+}
+
+// GetTodaySwitchCount retrieves the account switch count for today
+func (s *StatsTrackerService) GetTodaySwitchCount() (int64, error) {
+	ctx := context.Background()
+	key := "stats:global:account_switches:today"
+	count, err := s.redis.Get(ctx, key).Int64()
+	if err == redis.Nil {
+		return 0, nil
+	}
+	return count, err
+}
