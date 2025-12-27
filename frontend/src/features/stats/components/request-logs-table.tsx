@@ -19,10 +19,17 @@ export function RequestLogsTable({ logs, isLoading }: RequestLogsTableProps) {
     return new Date(dateString).toLocaleString()
   }
 
-  const getStatusBadgeClass = (status: RequestLog['status']) => {
-    return status === 'success'
+  const getStatusBadgeClass = (statusCode: number, error: string) => {
+    const isSuccess = statusCode >= 200 && statusCode < 300 && !error
+    return isSuccess
       ? 'inline-flex items-center rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-700'
       : 'inline-flex items-center rounded-full bg-red-100 px-2 py-1 text-xs font-medium text-red-700'
+  }
+
+  const getStatusLabel = (statusCode: number, error: string) => {
+    if (error) return `Error: ${error}`
+    if (statusCode >= 200 && statusCode < 300) return 'Success'
+    return `Error (${statusCode})`
   }
 
   return (
@@ -57,11 +64,11 @@ export function RequestLogsTable({ logs, isLoading }: RequestLogsTableProps) {
             ) : (
               logs.map((log) => (
                 <TableRow key={log.id}>
-                  <TableCell className="font-medium">{log.model}</TableCell>
-                  <TableCell>{log.provider}</TableCell>
+                  <TableCell className="font-medium">{log.model || '-'}</TableCell>
+                  <TableCell>{log.provider_id || '-'}</TableCell>
                   <TableCell>
-                    <span className={getStatusBadgeClass(log.status)}>
-                      {log.status}
+                    <span className={getStatusBadgeClass(log.status_code, log.error)}>
+                      {getStatusLabel(log.status_code, log.error)}
                     </span>
                   </TableCell>
                   <TableCell>{log.latency_ms}ms</TableCell>

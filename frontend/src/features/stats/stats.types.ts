@@ -7,11 +7,15 @@ export interface ProxyStats {
 }
 
 export interface RequestLog {
-  id: string
+  id: number
+  provider_id: string | null
+  account_id: string
+  proxy_id: number | null
   model: string
-  provider: string
-  status: 'success' | 'error'
+  status_code: number
   latency_ms: number
+  retry_count: number
+  error: string
   created_at: string
 }
 

@@ -15,6 +15,7 @@ export interface Proxy {
   success_rate: number
   avg_latency_ms: number
   last_checked_at: string | null
+  marked_down_at: string | null
   created_at: string
   updated_at: string
 }
