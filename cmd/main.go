@@ -1,6 +1,17 @@
 package main
 
 import (
+	"context"
+	"fmt"
+	"log"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+
+	"aigateway/auth/claude"
+	"aigateway/auth/codex"
+	"aigateway/auth/manager"
 	"aigateway/config"
 	"aigateway/database"
 	"aigateway/handlers"
@@ -12,11 +23,6 @@ import (
 	"aigateway/repositories"
 	"aigateway/routes"
 	"aigateway/services"
-	"fmt"
-	"log"
-	"os"
-	"os/signal"
-	"syscall"
 
 	"github.com/gin-gonic/gin"
 )
@@ -60,7 +66,7 @@ func main() {
 	oauthService := services.NewOAuthService(redis, accountRepo)
 	oauthFlowService := services.NewOAuthFlowService(redis, accountService, accountRepo)
 
-	// Initialize and start token refresh service
+	// Initialize and start token refresh service (legacy)
 	tokenRefreshService := services.NewTokenRefreshService(accountRepo, redis)
 	go tokenRefreshService.Start()
 
@@ -100,6 +106,38 @@ func main() {
 		statsTrackerService,
 	)
 
+	// ========================================
+	// Initialize Auth Manager (new system)
+	// ========================================
+	ctx := context.Background()
+	authManager := manager.NewManager(accountRepo, redis)
+
+	// Register token refreshers
+	authManager.RegisterRefresher("claude", claude.NewRefresher())
+	authManager.RegisterRefresher("codex", codex.NewRefresher())
+	// Note: antigravity uses existing tokenRefreshService
+
+	// Load accounts for all OAuth providers
+	if err := authManager.LoadAccounts(ctx, "antigravity", "claude", "codex"); err != nil {
+		log.Printf("Warning: Failed to load accounts into AuthManager: %v", err)
+	}
+
+	// Start background token refresh (for claude/codex)
+	authManager.StartAutoRefresh(ctx, 30*time.Second)
+
+	// Wire AuthManager to RouterService
+	routerService.SetAuthManager(authManager)
+
+	// Enable AuthManager for account selection (feature flag)
+	// Set to true to use health-aware selection with retry
+	useAuthManager := os.Getenv("USE_AUTH_MANAGER") == "true"
+	routerService.EnableAuthManager(useAuthManager)
+	if useAuthManager {
+		log.Println("AuthManager enabled for health-aware account selection")
+	}
+
+	// ========================================
+
 	// Initialize executor service with router
 	executorService := services.NewExecutorService(
 		routerService,
@@ -121,6 +159,9 @@ func main() {
 	apiKeyHandler := handlers.NewAPIKeyHandler(apiKeyService)
 	oauthHandler := handlers.NewOAuthHandler(oauthFlowService)
 
+	// Initialize auth status handler (for AuthManager dashboard)
+	authStatusHandler := handlers.NewAuthStatusHandler(authManager, authManager.GetMetrics())
+
 	// Initialize auth middleware
 	authMiddleware := middleware.NewAuthMiddleware(authService)
 
@@ -140,6 +181,9 @@ func main() {
 		oauthHandler,
 		authMiddleware,
 	)
+
+	// Setup AuthManager status routes
+	setupAuthStatusRoutes(r, authStatusHandler, authMiddleware)
 
 	// Setup graceful shutdown
 	quit := make(chan os.Signal, 1)
@@ -161,6 +205,20 @@ func main() {
 
 	// Stop background services
 	tokenRefreshService.Stop()
+	authManager.StopAutoRefresh()
 
 	log.Println("Server exited")
+}
+
+// setupAuthStatusRoutes registers AuthManager status endpoints
+func setupAuthStatusRoutes(r *gin.Engine, h *handlers.AuthStatusHandler, authMiddleware *middleware.AuthMiddleware) {
+	authStatus := r.Group("/api/v1/auth-manager")
+	authStatus.Use(authMiddleware.ExtractAuth())
+	authStatus.Use(middleware.RequireAdmin())
+	{
+		authStatus.GET("/accounts", h.GetAccountsStatus)
+		authStatus.GET("/accounts/:id", h.GetAccountStatus)
+		authStatus.GET("/metrics", h.GetMetrics)
+		authStatus.GET("/health", h.GetHealthSummary)
+	}
 }
