@@ -24,4 +24,5 @@ export interface TrendDataPoint {
   date: string
   requests: number
   errors: number
+  [key: string]: string | number
 }
