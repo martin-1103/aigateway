@@ -1,0 +1,43 @@
+import { createBrowserRouter, Navigate } from 'react-router-dom'
+import { AppLayout } from '@/components/layout'
+import { AuthGuard, LoginPage, useAuthStore } from '@/features/auth'
+import { DashboardPage } from '@/features/dashboard'
+
+function AuthenticatedLayout() {
+  const { user, logout } = useAuthStore()
+
+  if (!user) return null
+
+  return (
+    <AppLayout
+      username={user.username}
+      role={user.role}
+      onLogout={logout}
+    />
+  )
+}
+
+export const router = createBrowserRouter([
+  {
+    path: '/login',
+    element: <LoginPage />,
+  },
+  {
+    path: '/',
+    element: (
+      <AuthGuard>
+        <AuthenticatedLayout />
+      </AuthGuard>
+    ),
+    children: [
+      {
+        index: true,
+        element: <Navigate to="/dashboard" replace />,
+      },
+      {
+        path: 'dashboard',
+        element: <DashboardPage />,
+      },
+    ],
+  },
+])
