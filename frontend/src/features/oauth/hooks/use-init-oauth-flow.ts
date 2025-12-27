@@ -2,14 +2,29 @@ import { useMutation } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { initOAuthFlow } from '../api'
 import { handleError } from '@/lib/handle-error'
+import { logger } from '@/lib/logger'
 
 export function useInitOAuthFlow() {
   return useMutation({
-    mutationFn: initOAuthFlow,
+    mutationFn: async (data: Parameters<typeof initOAuthFlow>[0]) => {
+      logger.oauth.log('Sending init request', data)
+      try {
+        const response = await initOAuthFlow(data)
+        logger.oauth.info('Init success', response)
+        return response
+      } catch (error) {
+        logger.oauth.error('Init failed', error)
+        throw error
+      }
+    },
     onSuccess: (data) => {
+      logger.oauth.log('Redirecting to auth URL', data.auth_url)
       toast.success('OAuth flow initiated. Redirecting...')
       window.location.href = data.auth_url
     },
-    onError: handleError,
+    onError: (error) => {
+      logger.oauth.error('Mutation error', error)
+      handleError(error)
+    },
   })
 }
