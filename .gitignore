@@ -30,4 +30,6 @@ mcp-server/venv/
 # Auto Claude data directory
 .auto-claude/
 
+backend/referensi/cliproxyapi/
+
 

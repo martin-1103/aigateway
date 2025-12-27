@@ -87,12 +87,36 @@ Model routing in `providers/registry.go`:
 
 ## Frontend (React)
 
+### Setup
+
+**IMPORTANT:** Frontend requires `.env` file to run properly. If missing, create it:
+
+```bash
+cd frontend
+cp .env.example .env
+```
+
+Default `.env` contents:
+```
+VITE_API_URL=http://localhost:8088
+VITE_APP_NAME=AIGateway
+```
+
+### Build & Run
+
 ```bash
 cd frontend
 npm install
-npm run dev      # Development server
+npm run dev      # Development server (port 5173)
 npm run build    # Production build
 ```
+
+### Common Issues
+
+**Login not working?**
+- Check if `.env` file exists with correct `VITE_API_URL`
+- Restart dev server after creating/modifying `.env`
+- Backend must be running on port 8088
 
 ## MCP Server (Python)
 
