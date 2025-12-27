@@ -57,6 +57,9 @@ func main() {
 		log.Fatalf("Failed to connect to Redis: %v", err)
 	}
 
+	// Create background context for services
+	ctx := context.Background()
+
 	// Initialize repositories
 	accountRepo := repositories.NewAccountRepository(db)
 	proxyRepo := repositories.NewProxyRepository(db)
@@ -81,6 +84,10 @@ func main() {
 
 	proxyHealthService := services.NewProxyHealthService(proxyRepo, redis)
 	statsTrackerService := services.NewStatsTrackerService(statsRepo, proxyRepo, redis, proxyHealthService)
+
+	// Initialize proxy health check service (automatic recovery)
+	proxyHealthCheckService := services.NewProxyHealthCheckService(proxyRepo, 5, 1440) // Check every 5 min, recover after 1 day down
+	proxyHealthCheckService.Start(ctx)
 	statsQueryService := services.NewStatsQueryService(statsRepo)
 	quotaTrackerService := services.NewQuotaTrackerService(quotaPatternRepo, redis)
 	tokenExtractor := services.NewTokenExtractor()
@@ -121,7 +128,6 @@ func main() {
 	// ========================================
 	// Initialize Auth Manager (new system)
 	// ========================================
-	ctx := context.Background()
 	authManager := manager.NewManager(accountRepo, redis)
 
 	// Register token refreshers
