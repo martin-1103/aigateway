@@ -28,7 +28,7 @@ export function ModelMappingsPage() {
     setDeleteMapping(mapping)
   }
 
-  const mappings = data?.mappings ?? []
+  const mappings = data?.data ?? []
 
   return (
     <>

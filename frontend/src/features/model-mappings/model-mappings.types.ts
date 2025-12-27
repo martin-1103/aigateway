@@ -1,19 +1,30 @@
 export interface ModelMapping {
+  id: number
   alias: string
-  target_model: string
+  provider_id: string
+  model_name: string
+  description: string
+  enabled: boolean
+  priority: number
   created_at: string
   updated_at: string
 }
 
 export interface CreateModelMappingRequest {
   alias: string
-  target_model: string
+  provider_id: string
+  model_name: string
+  description?: string
 }
 
 export interface UpdateModelMappingRequest {
-  target_model: string
+  model_name: string
+  description?: string
 }
 
 export interface ModelMappingsResponse {
-  mappings: ModelMapping[]
+  data: ModelMapping[]
+  limit: number
+  page: number
+  total: number
 }

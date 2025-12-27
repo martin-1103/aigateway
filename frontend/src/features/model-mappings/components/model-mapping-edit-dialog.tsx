@@ -32,13 +32,14 @@ export function ModelMappingEditDialog({
   } = useForm<UpdateModelMappingFormData>({
     resolver: zodResolver(updateModelMappingSchema),
     defaultValues: {
-      target_model: '',
+      model_name: '',
+      description: '',
     },
   })
 
   useEffect(() => {
     if (mapping) {
-      reset({ target_model: mapping.target_model })
+      reset({ model_name: mapping.model_name, description: mapping.description })
     }
   }, [mapping, reset])
 
@@ -78,12 +79,23 @@ export function ModelMappingEditDialog({
       <FormField label="Alias">
         <Input value={mapping?.alias ?? ''} disabled className="bg-muted" />
       </FormField>
-      <FormField label="Target Model" error={errors.target_model?.message}>
+      <FormField label="Provider">
+        <Input value={mapping?.provider_id ?? ''} disabled className="bg-muted" />
+      </FormField>
+      <FormField label="Model Name" error={errors.model_name?.message}>
         <Input
-          {...register('target_model')}
-          placeholder="e.g., claude-sonnet-4-20250514"
+          {...register('model_name')}
+          placeholder="e.g., claude-opus-4-5"
           autoComplete="off"
-          aria-describedby={errors.target_model ? 'target-model-error' : undefined}
+          aria-describedby={errors.model_name ? 'model-name-error' : undefined}
+        />
+      </FormField>
+      <FormField label="Description" error={errors.description?.message}>
+        <Input
+          {...register('description')}
+          placeholder="e.g., Latest Claude Opus"
+          autoComplete="off"
+          aria-describedby={errors.description ? 'description-error' : undefined}
         />
       </FormField>
     </FormDialog>

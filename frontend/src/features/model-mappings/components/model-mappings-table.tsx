@@ -24,9 +24,11 @@ export function ModelMappingsTable({ mappings, onEdit, onDelete }: ModelMappings
           <TableHeader>
             <TableRow>
               <TableHead>Alias</TableHead>
-              <TableHead>Target Model</TableHead>
+              <TableHead>Provider</TableHead>
+              <TableHead>Model</TableHead>
+              <TableHead>Description</TableHead>
+              <TableHead>Status</TableHead>
               <TableHead>Created</TableHead>
-              <TableHead>Updated</TableHead>
               <TableHead className="w-[70px]">
                 <span className="sr-only">Actions</span>
               </TableHead>
@@ -34,13 +36,19 @@ export function ModelMappingsTable({ mappings, onEdit, onDelete }: ModelMappings
           </TableHeader>
           <TableBody>
             {mappings.map((mapping) => (
-              <TableRow key={mapping.alias}>
+              <TableRow key={mapping.id}>
                 <TableCell className="font-mono font-medium">{mapping.alias}</TableCell>
+                <TableCell className="text-muted-foreground">{mapping.provider_id}</TableCell>
                 <TableCell className="font-mono text-muted-foreground">
-                  {mapping.target_model}
+                  {mapping.model_name}
+                </TableCell>
+                <TableCell className="text-muted-foreground">{mapping.description}</TableCell>
+                <TableCell>
+                  <span className={mapping.enabled ? 'text-green-600' : 'text-red-600'}>
+                    {mapping.enabled ? 'Enabled' : 'Disabled'}
+                  </span>
                 </TableCell>
                 <TableCell>{formatDate(mapping.created_at)}</TableCell>
-                <TableCell>{formatDate(mapping.updated_at)}</TableCell>
                 <TableCell>
                   <ModelMappingActions
                     mapping={mapping}
