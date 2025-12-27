@@ -19,6 +19,10 @@ proxy:
   selection_strategy: "fill_first"
   health_check_interval: 60
   max_failures: 3
+  max_retries: 3
+  retry_delay_ms: 1000
+  down_recovery_delay_min: 1440
+  connect_timeout_sec: 10
 
 providers:
   antigravity:

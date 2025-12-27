@@ -45,9 +45,13 @@ type RedisConfig struct {
 }
 
 type ProxyConfig struct {
-	SelectionStrategy   string `yaml:"selection_strategy"`
-	HealthCheckInterval int    `yaml:"health_check_interval"`
-	MaxFailures         int    `yaml:"max_failures"`
+	SelectionStrategy    string `yaml:"selection_strategy"`
+	HealthCheckInterval  int    `yaml:"health_check_interval"`
+	MaxFailures          int    `yaml:"max_failures"`
+	MaxRetries           int    `yaml:"max_retries"`
+	RetryDelayMs         int    `yaml:"retry_delay_ms"`
+	DownRecoveryDelayMin int    `yaml:"down_recovery_delay_min"`
+	ConnectTimeoutSec    int    `yaml:"connect_timeout_sec"`
 }
 
 func Load(path string) (*Config, error) {
