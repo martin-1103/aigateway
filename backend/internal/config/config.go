@@ -15,12 +15,10 @@ type Config struct {
 }
 
 type ProviderConfig struct {
-	Enabled            bool              `yaml:"enabled"`
-	AuthStrategy       string            `yaml:"auth_strategy"`
-	BaseURL            string            `yaml:"base_url"`
-	OAuthClientID      string            `yaml:"oauth_client_id"`
-	OAuthClientSecret  string            `yaml:"oauth_client_secret"`
-	BaseURLs           []string          `yaml:"base_urls"`
+	Enabled      bool     `yaml:"enabled"`
+	AuthStrategy string   `yaml:"auth_strategy"`
+	BaseURL      string   `yaml:"base_url"`
+	BaseURLs     []string `yaml:"base_urls"`
 }
 
 type ServerConfig struct {

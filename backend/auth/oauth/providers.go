@@ -19,7 +19,7 @@ const (
 	AntigravityTokenURL = antigravity.OAuthTokenURL
 	AntigravityClientID = antigravity.OAuthClientID
 	AntigravitySecret   = antigravity.OAuthClientSecret
-	AntigravityScope    = "https://www.googleapis.com/auth/cloud-platform https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile"
+	AntigravityScope    = "https://www.googleapis.com/auth/cloud-platform https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/cclog https://www.googleapis.com/auth/experimentsandconfigs"
 	GoogleUserInfoURL   = "https://www.googleapis.com/oauth2/v1/userinfo?alt=json"
 
 	// OpenAI Codex OAuth config
