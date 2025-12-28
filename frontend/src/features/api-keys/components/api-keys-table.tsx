@@ -14,7 +14,7 @@ import { apiKeysTableColumns } from './api-keys-table-columns'
 import { ApiKeyRevokeDialog } from './api-key-revoke-dialog'
 import type { ApiKey } from '../api-keys.types'
 
-function formatDate(dateString: string | undefined): string {
+function formatDate(dateString: string | null | undefined): string {
   if (!dateString) return 'Never'
   return new Date(dateString).toLocaleDateString('en-US', {
     year: 'numeric',
