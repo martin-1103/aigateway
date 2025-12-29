@@ -6,9 +6,10 @@ import { SidebarNav } from './sidebar-nav'
 
 interface SidebarProps {
   userRole: 'admin' | 'user' | 'provider'
+  authMethod?: 'jwt' | 'access_key' | null
 }
 
-export function Sidebar({ userRole }: SidebarProps) {
+export function Sidebar({ userRole, authMethod }: SidebarProps) {
   const { isCollapsed, toggle } = useSidebarStore()
 
   return (
@@ -24,7 +25,7 @@ export function Sidebar({ userRole }: SidebarProps) {
           {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
         </Button>
       </div>
-      <SidebarNav userRole={userRole} />
+      <SidebarNav userRole={userRole} authMethod={authMethod} />
     </aside>
   )
 }

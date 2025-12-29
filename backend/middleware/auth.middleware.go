@@ -30,6 +30,18 @@ func (m *AuthMiddleware) ExtractAuth() gin.HandlerFunc {
 			return
 		}
 
+		// Try X-Access-Key header (user access key with uk_ prefix)
+		accessKey := c.GetHeader("X-Access-Key")
+		if accessKey != "" && strings.HasPrefix(accessKey, "uk_") {
+			user, err := m.authService.ValidateAccessKey(accessKey)
+			if err == nil {
+				SetCurrentUser(c, user)
+				c.Set("auth_method", "access_key")
+			}
+			c.Next()
+			return
+		}
+
 		// Try Authorization header
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" {
@@ -48,11 +60,17 @@ func (m *AuthMiddleware) ExtractAuth() gin.HandlerFunc {
 
 		switch scheme {
 		case "bearer":
-			// Could be JWT or API key
+			// Could be JWT or API key or access key
 			if strings.HasPrefix(token, "ak_") {
 				user, err := m.authService.ValidateAPIKey(token)
 				if err == nil {
 					SetCurrentUser(c, user)
+				}
+			} else if strings.HasPrefix(token, "uk_") {
+				user, err := m.authService.ValidateAccessKey(token)
+				if err == nil {
+					SetCurrentUser(c, user)
+					c.Set("auth_method", "access_key")
 				}
 			} else {
 				user, err := m.authService.ValidateJWT(token)

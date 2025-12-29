@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
-import { createBrowserRouter, Navigate } from 'react-router-dom'
+import { createBrowserRouter, Navigate, useSearchParams } from 'react-router-dom'
 import { AppLayout } from '@/components/layout'
 import { AuthGuard, RoleGuard, LoginPage, useAuthStore } from '@/features/auth'
-import { getMe } from '@/features/auth/api/get-me.api'
+import { getMe, getMeWithAccessKey } from '@/features/auth/api/get-me.api'
 import type { User } from '@/features/auth'
 import { DashboardPage } from '@/features/dashboard'
 import { UsersPage } from '@/features/users'
@@ -13,36 +13,60 @@ import { StatsPage } from '@/features/stats'
 import { ModelMappingsPage } from '@/features/model-mappings'
 import { OAuthPage } from '@/features/oauth'
 import { SettingsPage } from '@/features/settings'
-import { LiteLayout, LiteAccountsPage, LiteAPIKeysPage } from '@/features/lite'
 
 function AuthenticatedLayout() {
-  const { user, logout, isAuthenticated, setAuth } = useAuthStore()
+  const { user, logout, isAuthenticated, setAuth, setAccessKeyAuth, authMethod } = useAuthStore()
   const [loading, setLoading] = useState(false)
+  const [searchParams, setSearchParams] = useSearchParams()
 
   useEffect(() => {
+    const accessKey = searchParams.get('key')
+
+    // If access key in URL, authenticate with it
+    if (accessKey && accessKey.startsWith('uk_')) {
+      setLoading(true)
+      getMeWithAccessKey(accessKey)
+        .then((meData) => {
+          const user = meData as User
+          setAccessKeyAuth(accessKey, user)
+          // Remove key from URL after successful auth
+          searchParams.delete('key')
+          setSearchParams(searchParams, { replace: true })
+        })
+        .catch(() => {
+          // Invalid access key
+          searchParams.delete('key')
+          setSearchParams(searchParams, { replace: true })
+        })
+        .finally(() => {
+          setLoading(false)
+        })
+      return
+    }
+
+    // If authenticated but no user data, fetch it
     if (isAuthenticated && !user) {
       setLoading(true)
       getMe()
         .then((meData) => {
-          // Get token from store to pass to setAuth
           const state = useAuthStore.getState()
-          if (state.token) {
-            // Cast MeResponse to User (extra fields will be undefined)
-            const user = meData as User
+          const user = meData as User
+          if (state.accessKey) {
+            setAccessKeyAuth(state.accessKey, user)
+          } else if (state.token) {
             setAuth(state.token, user)
           }
         })
         .catch(() => {
-          // If fetching user fails, redirect to login
           useAuthStore.getState().logout()
         })
         .finally(() => {
           setLoading(false)
         })
     }
-  }, [isAuthenticated, user, setAuth])
+  }, [isAuthenticated, user, setAuth, setAccessKeyAuth, searchParams, setSearchParams])
 
-  if (!isAuthenticated) {
+  if (!isAuthenticated && !searchParams.get('key')) {
     return <Navigate to="/login" replace />
   }
 
@@ -55,6 +79,7 @@ function AuthenticatedLayout() {
       username={user.username}
       role={user.role}
       onLogout={logout}
+      authMethod={authMethod}
     />
   )
 }
@@ -139,20 +164,6 @@ export const router = createBrowserRouter([
       {
         path: 'settings',
         element: <SettingsPage />,
-      },
-    ],
-  },
-  {
-    path: '/lite',
-    element: <LiteLayout />,
-    children: [
-      {
-        index: true,
-        element: <LiteAccountsPage />,
-      },
-      {
-        path: 'api-keys',
-        element: <LiteAPIKeysPage />,
       },
     ],
   },

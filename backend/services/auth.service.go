@@ -119,3 +119,17 @@ func (s *AuthService) ValidateAPIKey(rawKey string) (*models.User, error) {
 
 	return apiKey.User, nil
 }
+
+// ValidateAccessKey validates a user access key (uk_ prefix)
+func (s *AuthService) ValidateAccessKey(key string) (*models.User, error) {
+	user, err := s.userService.GetByAccessKey(key)
+	if err != nil {
+		return nil, errors.New("invalid access key")
+	}
+
+	if !user.IsActive {
+		return nil, errors.New("account disabled")
+	}
+
+	return user, nil
+}

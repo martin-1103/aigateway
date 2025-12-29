@@ -23,9 +23,7 @@ func SetupRoutes(
 	apiKeyHandler *handlers.APIKeyHandler,
 	oauthHandler *handlers.OAuthHandler,
 	quotaHandler *handlers.QuotaHandler,
-	liteHandler *handlers.LiteHandler,
 	authMiddleware *middleware.AuthMiddleware,
-	liteMiddleware *middleware.LiteMiddleware,
 ) {
 	// Apply CORS middleware globally
 	r.Use(middleware.CORS())
@@ -145,20 +143,5 @@ func SetupRoutes(
 			oauth.POST("/exchange", middleware.RequireAccountAccess(), oauthHandler.Exchange)
 			oauth.POST("/refresh", middleware.RequireAccountAccess(), oauthHandler.RefreshToken)
 		}
-
-		// Lite dashboard endpoints (access key auth)
-		lite := api.Group("/lite")
-		lite.Use(middleware.LiteRateLimit())
-		lite.Use(liteMiddleware.ValidateAccessKey())
-		{
-			lite.GET("/me", liteHandler.Me)
-			lite.GET("/accounts", liteHandler.ListAccounts)
-			lite.GET("/api-keys", liteHandler.ListAPIKeys)
-			lite.GET("/oauth/providers", liteHandler.GetOAuthProviders)
-			lite.POST("/oauth/init", liteHandler.InitOAuth)
-		}
-
-		// Lite OAuth callback (public, but validates state)
-		api.GET("/lite/oauth/callback", liteHandler.OAuthCallback)
 	}
 }

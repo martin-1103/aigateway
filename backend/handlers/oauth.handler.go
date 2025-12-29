@@ -46,9 +46,22 @@ func (h *OAuthHandler) InitFlow(c *gin.Context) {
 func (h *OAuthHandler) Callback(c *gin.Context) {
 	callbackURL := c.Request.URL.String()
 
+	// Check if this is a lite flow by looking for access key in session
+	accessKey := h.service.GetAccessKeyFromState(c.Request.Context(), c.Query("state"))
+
 	resp, err := h.service.ExchangeCode(c.Request.Context(), callbackURL)
 	if err != nil {
-		c.Data(http.StatusBadRequest, "text/html; charset=utf-8", []byte(h.errorHTML(err.Error())))
+		if accessKey != "" {
+			c.Data(http.StatusBadRequest, "text/html; charset=utf-8", []byte(h.liteErrorHTML(err.Error(), accessKey)))
+		} else {
+			c.Data(http.StatusBadRequest, "text/html; charset=utf-8", []byte(h.errorHTML(err.Error())))
+		}
+		return
+	}
+
+	// If lite flow, redirect back to lite dashboard
+	if accessKey != "" {
+		c.Data(http.StatusOK, "text/html; charset=utf-8", []byte(h.liteSuccessHTML(resp.Account.Label, accessKey)))
 		return
 	}
 
@@ -150,6 +163,106 @@ func (h *OAuthHandler) successHTML(accountName string) string {
             window.opener.postMessage({ type: 'oauth_success', account: '` + accountName + `' }, '*');
         }
         setTimeout(() => window.close(), 2000);
+    </script>
+</body>
+</html>`
+}
+
+// liteSuccessHTML returns HTML that redirects to lite dashboard
+func (h *OAuthHandler) liteSuccessHTML(accountName, accessKey string) string {
+	redirectURL := "/lite?key=" + accessKey
+	return `<!DOCTYPE html>
+<html>
+<head>
+    <title>OAuth Success</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .container {
+            text-align: center;
+            background: white;
+            padding: 3rem;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        .icon { font-size: 4rem; margin-bottom: 1rem; }
+        h1 { color: #2d3748; margin: 0 0 1rem; font-size: 1.5rem; }
+        p { color: #718096; margin: 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="icon">✓</div>
+        <h1>Authentication Successful</h1>
+        <p>Account "` + accountName + `" has been connected.</p>
+        <p>Redirecting back to dashboard...</p>
+    </div>
+    <script>
+        setTimeout(() => {
+            window.location.href = '` + redirectURL + `';
+        }, 2000);
+    </script>
+</body>
+</html>`
+}
+
+// liteErrorHTML returns HTML that shows error and redirects to lite dashboard
+func (h *OAuthHandler) liteErrorHTML(errorMsg, accessKey string) string {
+	redirectURL := "/lite?key=" + accessKey
+	return `<!DOCTYPE html>
+<html>
+<head>
+    <title>OAuth Error</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+        .container {
+            text-align: center;
+            background: white;
+            padding: 3rem;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            max-width: 500px;
+        }
+        .icon { font-size: 4rem; margin-bottom: 1rem; }
+        h1 { color: #2d3748; margin: 0 0 1rem; font-size: 1.5rem; }
+        p { color: #718096; margin: 0.5rem 0; }
+        .error {
+            color: #e53e3e;
+            font-family: monospace;
+            font-size: 0.875rem;
+            background: #fff5f5;
+            padding: 1rem;
+            border-radius: 6px;
+            margin-top: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="icon">✗</div>
+        <h1>Authentication Failed</h1>
+        <div class="error">` + errorMsg + `</div>
+        <p style="margin-top: 1rem;">Redirecting back...</p>
+    </div>
+    <script>
+        setTimeout(() => {
+            window.location.href = '` + redirectURL + `';
+        }, 3000);
     </script>
 </body>
 </html>`

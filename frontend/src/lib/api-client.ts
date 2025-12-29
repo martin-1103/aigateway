@@ -14,7 +14,10 @@ apiClient.interceptors.request.use((config) => {
   const authStorage = localStorage.getItem('auth-storage')
   if (authStorage) {
     const { state } = JSON.parse(authStorage)
-    if (state?.token) {
+    // Use access key if present, otherwise use JWT token
+    if (state?.accessKey) {
+      config.headers['X-Access-Key'] = state.accessKey
+    } else if (state?.token) {
       config.headers.Authorization = `Bearer ${state.token}`
     }
   }
@@ -24,7 +27,10 @@ apiClient.interceptors.request.use((config) => {
       method: config.method?.toUpperCase(),
       url: config.url,
       data: config.data,
-      headers: { Authorization: config.headers.Authorization ? '***' : 'none' },
+      headers: {
+        Authorization: config.headers.Authorization ? '***' : 'none',
+        'X-Access-Key': config.headers['X-Access-Key'] ? '***' : 'none',
+      },
     })
   }
 

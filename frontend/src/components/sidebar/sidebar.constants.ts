@@ -8,15 +8,16 @@ export interface NavItem {
   href: string
   icon: LucideIcon
   roles: Role[]
+  allowAccessKey?: boolean
 }
 
 export const NAV_ITEMS: NavItem[] = [
-  { label: 'Dashboard', href: '/dashboard', icon: BarChart3, roles: ['admin', 'user', 'provider'] },
-  { label: 'Users', href: '/users', icon: Users, roles: ['admin'] },
-  { label: 'Accounts', href: '/accounts', icon: Database, roles: ['admin', 'user', 'provider'] },
-  { label: 'Proxies', href: '/proxies', icon: Server, roles: ['admin'] },
-  { label: 'API Keys', href: '/api-keys', icon: Key, roles: ['admin', 'user'] },
-  { label: 'Stats', href: '/stats', icon: BarChart3, roles: ['admin', 'user'] },
-  { label: 'Model Mappings', href: '/model-mappings', icon: GitBranch, roles: ['admin', 'user'] },
-  { label: 'OAuth', href: '/oauth', icon: Shield, roles: ['admin', 'user', 'provider'] },
+  { label: 'Dashboard', href: '/dashboard', icon: BarChart3, roles: ['admin', 'user', 'provider'], allowAccessKey: true },
+  { label: 'Users', href: '/users', icon: Users, roles: ['admin'], allowAccessKey: false },
+  { label: 'Accounts', href: '/accounts', icon: Database, roles: ['admin', 'user', 'provider'], allowAccessKey: true },
+  { label: 'Proxies', href: '/proxies', icon: Server, roles: ['admin'], allowAccessKey: false },
+  { label: 'API Keys', href: '/api-keys', icon: Key, roles: ['admin', 'user'], allowAccessKey: false },
+  { label: 'Stats', href: '/stats', icon: BarChart3, roles: ['admin', 'user'], allowAccessKey: true },
+  { label: 'Model Mappings', href: '/model-mappings', icon: GitBranch, roles: ['admin', 'user'], allowAccessKey: true },
+  { label: 'OAuth', href: '/oauth', icon: Shield, roles: ['admin', 'user', 'provider'], allowAccessKey: true },
 ]

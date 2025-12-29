@@ -51,10 +51,10 @@ export function SettingsPage() {
     toast.success('Copied to clipboard')
   }
 
-  const handleOpenLite = async () => {
+  const handleOpenWithAccessKey = async () => {
     try {
       const fullKey = await getMyFullAccessKey()
-      window.open(`/lite?key=${fullKey}`, '_blank')
+      window.open(`/?key=${fullKey}`, '_blank')
     } catch {
       toast.error('Failed to get access key')
     }
@@ -73,7 +73,7 @@ export function SettingsPage() {
         <CardHeader>
           <CardTitle>Access Key</CardTitle>
           <CardDescription>
-            Use this key to access the lite dashboard without logging in.
+            Use this key to access the panel without logging in.
             Useful for quickly adding OAuth accounts from different browsers.
           </CardDescription>
         </CardHeader>
@@ -104,21 +104,22 @@ export function SettingsPage() {
 
               {maskedKey && (
                 <div className="rounded-md bg-muted p-4">
-                  <p className="text-sm font-medium">Lite Dashboard URL:</p>
+                  <p className="text-sm font-medium">Access Key URL:</p>
                   <p className="mt-1 text-xs text-muted-foreground">
                     Bookmark this URL to access your accounts without logging in.
+                    Some features are disabled in Access Key mode for security.
                   </p>
                   <div className="mt-2 flex items-center gap-2">
                     <code className="flex-1 rounded bg-background px-2 py-1 text-xs">
-                      {window.location.origin}/lite?key=...
+                      {window.location.origin}/?key=...
                     </code>
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={handleOpenLite}
+                      onClick={handleOpenWithAccessKey}
                     >
                       <ExternalLink className="mr-1 h-3 w-3" />
-                      Open Lite
+                      Open Panel
                     </Button>
                   </div>
                 </div>
@@ -134,9 +135,8 @@ export function SettingsPage() {
           <DialogHeader>
             <DialogTitle>Regenerate Access Key?</DialogTitle>
             <DialogDescription>
-              This will invalidate your current access key. Any bookmarked lite
-              dashboard URLs will stop working until you update them with the
-              new key.
+              This will invalidate your current access key. Any bookmarked
+              URLs will stop working until you update them with the new key.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -169,15 +169,15 @@ export function SettingsPage() {
               </Button>
             </div>
             <div className="rounded-md bg-muted p-3">
-              <p className="text-sm font-medium">Your Lite Dashboard URL:</p>
+              <p className="text-sm font-medium">Your Access Key URL:</p>
               <code className="mt-1 block text-xs break-all">
-                {window.location.origin}/lite?key={newKey}
+                {window.location.origin}/?key={newKey}
               </code>
               <Button
                 variant="link"
                 size="sm"
                 className="mt-2 h-auto p-0"
-                onClick={() => copyToClipboard(`${window.location.origin}/lite?key=${newKey}`)}
+                onClick={() => copyToClipboard(`${window.location.origin}/?key=${newKey}`)}
               >
                 <Copy className="mr-1 h-3 w-3" />
                 Copy Full URL
