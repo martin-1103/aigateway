@@ -3,6 +3,7 @@ package services
 
 import (
 	"errors"
+	"log"
 
 	"aigateway-backend/models"
 )
@@ -51,7 +52,15 @@ func (s *AuthService) Login(username, password string) (*LoginResponse, error) {
 
 	// Auto-generate access key for existing users if not exists
 	if user.AccessKey == nil || *user.AccessKey == "" {
-		_, _, _ = s.userService.EnsureAccessKey(user.ID)
+		log.Printf("[Auth] User %s has no access key, generating...", user.Username)
+		key, generated, err := s.userService.EnsureAccessKey(user.ID)
+		if err != nil {
+			log.Printf("[Auth] Failed to generate access key for user %s: %v", user.Username, err)
+		} else {
+			log.Printf("[Auth] Access key for user %s: generated=%v, key_prefix=%s", user.Username, generated, key[:10])
+		}
+	} else {
+		log.Printf("[Auth] User %s already has access key", user.Username)
 	}
 
 	token, err := s.jwtService.Generate(user)

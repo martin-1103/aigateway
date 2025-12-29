@@ -3,6 +3,7 @@ package services
 
 import (
 	"errors"
+	"log"
 
 	"aigateway-backend/internal/utils"
 	"aigateway-backend/models"
@@ -91,20 +92,30 @@ func (s *UserService) GetByAccessKey(key string) (*models.User, error) {
 }
 
 func (s *UserService) EnsureAccessKey(userID string) (string, bool, error) {
+	log.Printf("[UserService] EnsureAccessKey called for user %s", userID)
 	user, err := s.repo.GetByID(userID)
 	if err != nil {
+		log.Printf("[UserService] GetByID error: %v", err)
 		return "", false, err
 	}
 
+	log.Printf("[UserService] User found: %s, AccessKey nil=%v, AccessKey empty=%v",
+		user.Username, user.AccessKey == nil, user.AccessKey != nil && *user.AccessKey == "")
+
 	if user.AccessKey != nil && *user.AccessKey != "" {
+		log.Printf("[UserService] User already has access key")
 		return *user.AccessKey, false, nil
 	}
 
 	newKey := utils.GenerateAccessKey()
+	log.Printf("[UserService] Generated new key: %s...", newKey[:10])
+
 	if err := s.repo.UpdateAccessKey(userID, newKey); err != nil {
+		log.Printf("[UserService] UpdateAccessKey error: %v", err)
 		return "", false, err
 	}
 
+	log.Printf("[UserService] Access key saved successfully")
 	return newKey, true, nil
 }
 

@@ -2,6 +2,8 @@
 package repositories
 
 import (
+	"log"
+
 	"aigateway-backend/models"
 
 	"gorm.io/gorm"
@@ -65,5 +67,12 @@ func (r *UserRepository) GetByAccessKey(key string) (*models.User, error) {
 }
 
 func (r *UserRepository) UpdateAccessKey(userID, key string) error {
-	return r.db.Model(&models.User{}).Where("id = ?", userID).Update("access_key", key).Error
+	log.Printf("[UserRepo] UpdateAccessKey: userID=%s, key=%s...", userID, key[:10])
+	result := r.db.Model(&models.User{}).Where("id = ?", userID).Update("access_key", key)
+	if result.Error != nil {
+		log.Printf("[UserRepo] UpdateAccessKey error: %v", result.Error)
+		return result.Error
+	}
+	log.Printf("[UserRepo] UpdateAccessKey rows affected: %d", result.RowsAffected)
+	return nil
 }
