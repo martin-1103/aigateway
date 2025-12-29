@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"log"
 	"net/http"
 	"strings"
 	"sync"
@@ -25,7 +26,11 @@ func (m *LiteMiddleware) ValidateAccessKey() gin.HandlerFunc {
 		if key == "" {
 			key = c.GetHeader("X-Access-Key")
 		}
+
+		log.Printf("[Lite] Access key received: %s (len=%d)", key, len(key))
+
 		if key == "" || !strings.HasPrefix(key, "uk_") {
+			log.Printf("[Lite] Rejected: empty or invalid prefix")
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
 				"error": "access key required",
 			})
@@ -34,12 +39,14 @@ func (m *LiteMiddleware) ValidateAccessKey() gin.HandlerFunc {
 
 		user, err := m.userRepo.GetByAccessKey(key)
 		if err != nil {
+			log.Printf("[Lite] GetByAccessKey error: %v", err)
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
 				"error": "invalid access key",
 			})
 			return
 		}
 
+		log.Printf("[Lite] User found: %s (id=%s)", user.Username, user.ID)
 		SetCurrentUser(c, user)
 		c.Next()
 	}
