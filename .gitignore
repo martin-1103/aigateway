@@ -4,6 +4,9 @@
 backend/aigateway
 nul
 
+# Deploy scripts
+deploy.sh
+
 # Logs
 *.log
 
