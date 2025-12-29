@@ -49,6 +49,11 @@ func (s *AuthService) Login(username, password string) (*LoginResponse, error) {
 		return nil, errors.New("invalid credentials")
 	}
 
+	// Auto-generate access key for existing users if not exists
+	if user.AccessKey == nil || *user.AccessKey == "" {
+		_, _, _ = s.userService.EnsureAccessKey(user.ID)
+	}
+
 	token, err := s.jwtService.Generate(user)
 	if err != nil {
 		return nil, err
