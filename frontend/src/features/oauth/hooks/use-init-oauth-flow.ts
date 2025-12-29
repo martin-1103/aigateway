@@ -17,10 +17,14 @@ export function useInitOAuthFlow() {
         throw error
       }
     },
-    onSuccess: (data) => {
-      logger.oauth.log('Redirecting to auth URL', data.auth_url)
-      toast.success('OAuth flow initiated. Redirecting...')
-      window.location.href = data.auth_url
+    onSuccess: (data, variables) => {
+      logger.oauth.log('OAuth init success', data.auth_url)
+      if (variables.flow_type === 'manual') {
+        toast.success('OAuth flow initiated. Complete login in the new tab.')
+      } else {
+        toast.success('OAuth flow initiated. Redirecting...')
+        window.location.href = data.auth_url
+      }
     },
     onError: (error) => {
       logger.oauth.error('Mutation error', error)

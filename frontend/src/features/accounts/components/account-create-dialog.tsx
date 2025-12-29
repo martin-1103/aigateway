@@ -5,16 +5,20 @@ import { FormDialog } from '@/components/form'
 import { FormField } from '@/components/form'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
+import { Label } from '@/components/ui/label'
 import { useCreateAccount } from '../hooks'
 import { createAccountSchema, type CreateAccountFormData } from '../accounts.schemas'
 import type { Provider } from '../accounts.types'
 import { apiClient } from '@/lib/api-client'
-import { Loader2 } from 'lucide-react'
+import { Loader2, ExternalLink } from 'lucide-react'
+import { useExchangeOAuth } from '@/features/oauth/hooks'
 
 interface AccountCreateDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
 }
+
+type OAuthStep = 'idle' | 'started' | 'callback'
 
 export function AccountCreateDialog({ open, onOpenChange }: AccountCreateDialogProps) {
   const [providers, setProviders] = useState<Provider[]>([])
@@ -23,6 +27,9 @@ export function AccountCreateDialog({ open, onOpenChange }: AccountCreateDialogP
   const [selectedAuthType, setSelectedAuthType] = useState<'oauth' | 'api_key' | ''>('')
   const [oauthLoading, setOauthLoading] = useState(false)
   const [projectId, setProjectId] = useState('')
+  const [oauthStep, setOauthStep] = useState<OAuthStep>('idle')
+  const [authUrl, setAuthUrl] = useState('')
+  const [callbackUrl, setCallbackUrl] = useState('')
 
   const {
     register,
@@ -43,19 +50,26 @@ export function AccountCreateDialog({ open, onOpenChange }: AccountCreateDialogP
 
   const providerIdValue = watch('provider_id')
 
-  // Fetch providers on dialog open
+  const exchangeMutation = useExchangeOAuth({
+    onSuccess: () => {
+      handleClose()
+    },
+  })
+
   useEffect(() => {
     if (open && providers.length === 0) {
       fetchProviders()
     }
   }, [open])
 
-  // Update selected provider and auth types when provider_id changes
   useEffect(() => {
     const provider = providers.find((p) => p.id === providerIdValue)
     setSelectedProvider(provider || null)
     setSelectedAuthType('')
     setValue('auth_data', '')
+    setOauthStep('idle')
+    setAuthUrl('')
+    setCallbackUrl('')
   }, [providerIdValue, providers, setValue])
 
   const fetchProviders = async () => {
@@ -72,11 +86,7 @@ export function AccountCreateDialog({ open, onOpenChange }: AccountCreateDialogP
 
   const createMutation = useCreateAccount({
     onSuccess: () => {
-      reset()
-      setSelectedProvider(null)
-      setSelectedAuthType('')
-      setProjectId('')
-      onOpenChange(false)
+      handleClose()
     },
   })
 
@@ -99,52 +109,36 @@ export function AccountCreateDialog({ open, onOpenChange }: AccountCreateDialogP
     try {
       setOauthLoading(true)
 
-      // Generate PKCE codes and get auth URL
       const initResponse = await apiClient.post<{ auth_url: string }>('/api/v1/oauth/init', {
         provider: selectedProvider.id,
         project_id: projectId.trim(),
-        flow_type: 'auto',
+        flow_type: 'manual',
       })
 
-      // Open OAuth in popup
-      const width = 600
-      const height = 700
-      const left = window.innerWidth / 2 - width / 2
-      const top = window.innerHeight / 2 - height / 2
-
-      const popup = window.open(
-        initResponse.data.auth_url,
-        'oauth-popup',
-        `width=${width},height=${height},left=${left},top=${top}`
-      )
-
-      if (!popup) {
-        alert('Popup was blocked. Please allow popups for this site.')
-        return
-      }
-
-      // Listen for OAuth success message
-      const handleOAuthMessage = (event: MessageEvent) => {
-        if (event.data.type === 'oauth_success') {
-          setSelectedAuthType('oauth')
-          // Auth data will be stored from the OAuth callback
-          // The account is already created by the backend
-          popup.close()
-          setOauthLoading(false)
-          // Close dialog on success
-          setTimeout(() => onOpenChange(false), 500)
-        } else if (event.data.type === 'oauth_error') {
-          console.error('OAuth error:', event.data.error)
-          setOauthLoading(false)
-        }
-      }
-
-      window.addEventListener('message', handleOAuthMessage)
-      return () => window.removeEventListener('message', handleOAuthMessage)
+      setAuthUrl(initResponse.data.auth_url)
+      setOauthStep('callback')
+      window.open(initResponse.data.auth_url, '_blank')
     } catch (error) {
       console.error('Failed to initiate OAuth:', error)
+    } finally {
       setOauthLoading(false)
     }
+  }
+
+  const handleCallbackSubmit = () => {
+    if (!callbackUrl.trim()) return
+    exchangeMutation.mutate({ callback_url: callbackUrl.trim() })
+  }
+
+  const handleClose = () => {
+    reset()
+    setSelectedProvider(null)
+    setSelectedAuthType('')
+    setProjectId('')
+    setOauthStep('idle')
+    setAuthUrl('')
+    setCallbackUrl('')
+    onOpenChange(false)
   }
 
   const supportsOAuth = selectedProvider?.supported_auth_types.includes('oauth') ?? false
@@ -154,19 +148,15 @@ export function AccountCreateDialog({ open, onOpenChange }: AccountCreateDialogP
     <FormDialog
       open={open}
       onOpenChange={(isOpen) => {
-        if (!isOpen) {
-          reset()
-          setSelectedProvider(null)
-          setSelectedAuthType('')
-          setProjectId('')
-        }
-        onOpenChange(isOpen)
+        if (!isOpen) handleClose()
+        else onOpenChange(isOpen)
       }}
       title="Create Account"
       description="Add a new provider account to the gateway."
       onSubmit={onSubmit}
       isSubmitting={createMutation.isPending}
       submitLabel="Create"
+      hideSubmit={selectedAuthType === 'oauth'}
     >
       {providersLoading ? (
         <div className="flex justify-center py-4">
@@ -191,7 +181,6 @@ export function AccountCreateDialog({ open, onOpenChange }: AccountCreateDialogP
 
           {selectedProvider && (
             <>
-              {/* Auth Type Selection - shown first */}
               {(supportsOAuth || supportsAPIKey) && (
                 <FormField label="Authentication Method">
                   <div className="space-y-2">
@@ -205,6 +194,7 @@ export function AccountCreateDialog({ open, onOpenChange }: AccountCreateDialogP
                           onChange={(e) => {
                             setSelectedAuthType(e.target.value as 'oauth')
                             setValue('auth_data', '')
+                            setOauthStep('idle')
                           }}
                           className="h-4 w-4"
                         />
@@ -221,6 +211,7 @@ export function AccountCreateDialog({ open, onOpenChange }: AccountCreateDialogP
                           onChange={(e) => {
                             setSelectedAuthType(e.target.value as 'api_key')
                             setProjectId('')
+                            setOauthStep('idle')
                           }}
                           className="h-4 w-4"
                         />
@@ -231,8 +222,8 @@ export function AccountCreateDialog({ open, onOpenChange }: AccountCreateDialogP
                 </FormField>
               )}
 
-              {/* OAuth Flow */}
-              {selectedAuthType === 'oauth' && (
+              {/* OAuth Flow - Step 1: Start */}
+              {selectedAuthType === 'oauth' && oauthStep === 'idle' && (
                 <>
                   <FormField label="Project ID">
                     <Input
@@ -255,47 +246,116 @@ export function AccountCreateDialog({ open, onOpenChange }: AccountCreateDialogP
                       {oauthLoading ? (
                         <>
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Initiating...
+                          Starting...
                         </>
                       ) : (
-                        'Start OAuth Flow'
+                        <>
+                          <ExternalLink className="mr-2 h-4 w-4" />
+                          Start OAuth Flow
+                        </>
                       )}
                     </Button>
-                    <p className="text-xs text-muted-foreground mt-2">
-                      Click to open OAuth login in a popup window
-                    </p>
                   </FormField>
                 </>
               )}
 
-              {/* Account Label - only shown for API Key auth */}
-              {selectedAuthType === 'api_key' && (
-                <FormField label="Account Label" error={errors.label?.message}>
-                  <Input
-                    {...register('label')}
-                    type="text"
-                    placeholder="My Account"
-                    autoComplete="off"
-                  />
-                </FormField>
+              {/* OAuth Flow - Step 2: Callback URL Input */}
+              {selectedAuthType === 'oauth' && oauthStep === 'callback' && (
+                <>
+                  <div className="rounded-md bg-muted p-3 text-sm">
+                    <p className="font-medium">Instructions:</p>
+                    <ol className="mt-2 list-decimal pl-4 space-y-1 text-muted-foreground">
+                      <li>Complete Google login in the new tab</li>
+                      <li>After login, copy the URL from address bar</li>
+                      <li>Paste it below and click Submit</li>
+                    </ol>
+                  </div>
+
+                  {authUrl && (
+                    <div className="space-y-2">
+                      <Label className="text-sm">Auth URL</Label>
+                      <div className="flex gap-2">
+                        <Input value={authUrl} disabled className="text-xs flex-1" />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          onClick={() => window.open(authUrl, '_blank')}
+                        >
+                          <ExternalLink className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="space-y-2">
+                    <Label className="text-sm">Callback URL</Label>
+                    <textarea
+                      value={callbackUrl}
+                      onChange={(e) => setCallbackUrl(e.target.value)}
+                      placeholder="Paste the full callback URL here..."
+                      rows={3}
+                      className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    />
+                  </div>
+
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        setOauthStep('idle')
+                        setCallbackUrl('')
+                      }}
+                      className="flex-1"
+                    >
+                      Back
+                    </Button>
+                    <Button
+                      type="button"
+                      onClick={handleCallbackSubmit}
+                      disabled={exchangeMutation.isPending || !callbackUrl.trim()}
+                      className="flex-1"
+                    >
+                      {exchangeMutation.isPending ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Submitting...
+                        </>
+                      ) : (
+                        'Submit Callback URL'
+                      )}
+                    </Button>
+                  </div>
+                </>
               )}
 
-              {/* API Key Input */}
+              {/* API Key Flow */}
               {selectedAuthType === 'api_key' && (
-                <FormField label="Credentials (JSON)" error={errors.auth_data?.message}>
-                  <textarea
-                    {...register('auth_data')}
-                    rows={4}
-                    placeholder={
-                      selectedProvider.id === 'openai'
-                        ? '{"api_key": "sk-..."}'
-                        : selectedProvider.id === 'glm'
-                          ? '{"api_key": "..."}'
-                          : '{"api_key": "..."}'
-                    }
-                    className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                  />
-                </FormField>
+                <>
+                  <FormField label="Account Label" error={errors.label?.message}>
+                    <Input
+                      {...register('label')}
+                      type="text"
+                      placeholder="My Account"
+                      autoComplete="off"
+                    />
+                  </FormField>
+                  <FormField label="Credentials (JSON)" error={errors.auth_data?.message}>
+                    <textarea
+                      {...register('auth_data')}
+                      rows={4}
+                      placeholder={
+                        selectedProvider.id === 'openai'
+                          ? '{"api_key": "sk-..."}'
+                          : selectedProvider.id === 'glm'
+                            ? '{"api_key": "..."}'
+                            : '{"api_key": "..."}'
+                      }
+                      className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    />
+                  </FormField>
+                </>
               )}
             </>
           )}

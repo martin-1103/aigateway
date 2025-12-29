@@ -26,3 +26,16 @@ export interface RefreshTokenResponse {
   success: boolean
   message: string
 }
+
+export interface ExchangeOAuthRequest {
+  callback_url: string
+}
+
+export interface ExchangeOAuthResponse {
+  success: boolean
+  account: {
+    id: string
+    provider_id: string
+    label: string
+  }
+}
