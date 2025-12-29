@@ -111,9 +111,8 @@ func SetupRoutes(
 			stats.GET("/logs", statsHandler.GetRecentLogs)
 		}
 
-		// Error logs endpoints (admin only)
+		// Error logs endpoints (public for debugging)
 		logs := api.Group("/logs")
-		logs.Use(middleware.RequireAdmin())
 		{
 			logs.GET("/errors", logsHandler.GetRecentErrors)
 			logs.GET("/errors/range", logsHandler.GetErrorsByTimeRange)
