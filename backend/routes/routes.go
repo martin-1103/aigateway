@@ -108,12 +108,15 @@ func SetupRoutes(
 		stats.Use(middleware.RequireRole(models.RoleAdmin, models.RoleUser))
 		{
 			stats.GET("/proxies/:id", statsHandler.GetProxyStats)
-			stats.GET("/logs", statsHandler.GetRecentLogs)
 		}
 
-		// Error logs endpoints (public for debugging)
+		// Public logs endpoints (no auth for debugging)
 		logs := api.Group("/logs")
 		{
+			// Request logs (public)
+			logs.GET("", statsHandler.GetRecentLogs)
+
+			// Error logs (public)
 			logs.GET("/errors", logsHandler.GetRecentErrors)
 			logs.GET("/errors/range", logsHandler.GetErrorsByTimeRange)
 			logs.POST("/errors/cleanup", logsHandler.CleanupOldLogs)
