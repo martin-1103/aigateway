@@ -190,12 +190,14 @@ func main() {
 	apiKeyHandler := handlers.NewAPIKeyHandler(apiKeyService)
 	oauthHandler := handlers.NewOAuthHandler(oauthFlowService)
 	quotaHandler := handlers.NewQuotaHandler(quotaTrackerService, accountRepo, quotaPatternRepo)
+	liteHandler := handlers.NewLiteHandler(accountService, apiKeyService, oauthFlowService)
 
 	// Initialize auth status handler (for AuthManager dashboard)
 	authStatusHandler := handlers.NewAuthStatusHandler(authManager, authManager.GetMetrics())
 
 	// Initialize auth middleware
 	authMiddleware := middleware.NewAuthMiddleware(authService)
+	liteMiddleware := middleware.NewLiteMiddleware(userRepo)
 
 	// Setup routes
 	r := gin.Default()
@@ -213,7 +215,9 @@ func main() {
 		apiKeyHandler,
 		oauthHandler,
 		quotaHandler,
+		liteHandler,
 		authMiddleware,
+		liteMiddleware,
 	)
 
 	// Setup AuthManager status routes

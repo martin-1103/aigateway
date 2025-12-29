@@ -12,6 +12,8 @@ import { ApiKeysPage } from '@/features/api-keys'
 import { StatsPage } from '@/features/stats'
 import { ModelMappingsPage } from '@/features/model-mappings'
 import { OAuthPage } from '@/features/oauth'
+import { SettingsPage } from '@/features/settings'
+import { LiteLayout, LiteAccountsPage, LiteAPIKeysPage } from '@/features/lite'
 
 function AuthenticatedLayout() {
   const { user, logout, isAuthenticated, setAuth } = useAuthStore()
@@ -133,6 +135,24 @@ export const router = createBrowserRouter([
             <OAuthPage />
           </RoleGuard>
         ),
+      },
+      {
+        path: 'settings',
+        element: <SettingsPage />,
+      },
+    ],
+  },
+  {
+    path: '/lite',
+    element: <LiteLayout />,
+    children: [
+      {
+        index: true,
+        element: <LiteAccountsPage />,
+      },
+      {
+        path: 'api-keys',
+        element: <LiteAPIKeysPage />,
       },
     ],
   },

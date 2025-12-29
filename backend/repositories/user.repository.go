@@ -54,3 +54,16 @@ func (r *UserRepository) Update(user *models.User) error {
 func (r *UserRepository) Delete(id string) error {
 	return r.db.Where("id = ?", id).Delete(&models.User{}).Error
 }
+
+func (r *UserRepository) GetByAccessKey(key string) (*models.User, error) {
+	var user models.User
+	err := r.db.Where("access_key = ? AND is_active = ?", key, true).First(&user).Error
+	if err != nil {
+		return nil, err
+	}
+	return &user, nil
+}
+
+func (r *UserRepository) UpdateAccessKey(userID, key string) error {
+	return r.db.Model(&models.User{}).Where("id = ?", userID).Update("access_key", key).Error
+}

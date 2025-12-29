@@ -38,22 +38,24 @@ type OAuthFlowService struct {
 
 // OAuthSession represents an OAuth flow session stored in Redis
 type OAuthSession struct {
-	Provider     string    `json:"provider"`
-	ProjectID    string    `json:"project_id"`
-	FlowType     string    `json:"flow_type"`
-	RedirectURI  string    `json:"redirect_uri"`
-	CodeVerifier string    `json:"code_verifier"`
-	CreatedAt    time.Time `json:"created_at"`
-	CreatedBy    *string   `json:"created_by,omitempty"`
+	Provider      string    `json:"provider"`
+	ProjectID     string    `json:"project_id"`
+	FlowType      string    `json:"flow_type"`
+	RedirectURI   string    `json:"redirect_uri"`
+	CodeVerifier  string    `json:"code_verifier"`
+	CreatedAt     time.Time `json:"created_at"`
+	CreatedBy     *string   `json:"created_by,omitempty"`
+	LiteAccessKey string    `json:"lite_access_key,omitempty"`
 }
 
 // InitFlowRequest represents OAuth init request
 type InitFlowRequest struct {
-	Provider    string  `json:"provider" binding:"required"`
-	ProjectID   string  `json:"project_id" binding:"required"`
-	FlowType    string  `json:"flow_type" binding:"required"`
-	RedirectURI string  `json:"redirect_uri"`
-	CreatedBy   *string `json:"created_by,omitempty"`
+	Provider      string  `json:"provider" binding:"required"`
+	ProjectID     string  `json:"project_id" binding:"required"`
+	FlowType      string  `json:"flow_type" binding:"required"`
+	RedirectURI   string  `json:"redirect_uri"`
+	CreatedBy     *string `json:"created_by,omitempty"`
+	LiteAccessKey string  `json:"lite_access_key,omitempty"`
 }
 
 // InitFlowResponse represents OAuth init response
@@ -125,13 +127,14 @@ func (s *OAuthFlowService) InitFlow(ctx context.Context, req *InitFlowRequest) (
 	}
 
 	session := OAuthSession{
-		Provider:     req.Provider,
-		ProjectID:    req.ProjectID,
-		FlowType:     req.FlowType,
-		RedirectURI:  redirectURI,
-		CodeVerifier: pkceCodes.CodeVerifier,
-		CreatedAt:    time.Now(),
-		CreatedBy:    req.CreatedBy,
+		Provider:      req.Provider,
+		ProjectID:     req.ProjectID,
+		FlowType:      req.FlowType,
+		RedirectURI:   redirectURI,
+		CodeVerifier:  pkceCodes.CodeVerifier,
+		CreatedAt:     time.Now(),
+		CreatedBy:     req.CreatedBy,
+		LiteAccessKey: req.LiteAccessKey,
 	}
 
 	sessionJSON, err := json.Marshal(session)
@@ -356,4 +359,24 @@ func (s *OAuthFlowService) RefreshToken(ctx context.Context, accountID string) e
 	}
 
 	return s.repo.UpdateAuthDataWithExpiry(accountID, string(updatedAuthData), expiresAt)
+}
+
+// GetAccessKeyFromState retrieves the lite access key from OAuth session state
+func (s *OAuthFlowService) GetAccessKeyFromState(ctx context.Context, state string) string {
+	if state == "" {
+		return ""
+	}
+
+	sessionKey := fmt.Sprintf("oauth:session:%s", state)
+	sessionJSON, err := s.redis.Get(ctx, sessionKey).Result()
+	if err != nil {
+		return ""
+	}
+
+	var session OAuthSession
+	if err := json.Unmarshal([]byte(sessionJSON), &session); err != nil {
+		return ""
+	}
+
+	return session.LiteAccessKey
 }
