@@ -24,7 +24,7 @@ const (
 	OAuthSessionTTL = 10 * time.Minute
 
 	// Default redirect URI
-	DefaultRedirectURI = "http://localhost:8088/api/v1/oauth/callback"
+	DefaultRedirectURI = "http://172.235.254.157:8088/api/v1/oauth/callback"
 )
 
 // OAuthFlowService handles OAuth authorization flow
