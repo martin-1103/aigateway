@@ -173,6 +173,10 @@ func (s *RouterService) executeWithPermanentProxy(
 	// Handle connection errors
 	if err != nil && executeResp == nil {
 		s.statsTrackerService.RecordFailureWithRetry(&account.ID, account.ProxyID, 0, err, retryCtx.RetryCount, retryCtx.SwitchedFromAccID)
+		// Track health failure (defensive: check accountRepo exists)
+		if s.accountRepo != nil {
+			go s.accountRepo.UpdateHealthFailure(account.ID, err.Error())
+		}
 		return Response{}, 0, nil, fmt.Errorf("provider execution failed: %w", err)
 	}
 
@@ -194,10 +198,19 @@ func (s *RouterService) executeWithPermanentProxy(
 
 	// Check success
 	if statusCode < 200 || statusCode >= 300 {
+		// Track health failure for non-2xx (defensive: check accountRepo exists)
+		if s.accountRepo != nil {
+			go s.accountRepo.UpdateHealthFailure(account.ID, fmt.Sprintf("HTTP %d", statusCode))
+		}
 		return Response{
 			StatusCode: statusCode,
 			Payload:    payload,
 		}, statusCode, payload, fmt.Errorf("upstream error: %d", statusCode)
+	}
+
+	// Track health success (defensive: check accountRepo exists)
+	if s.accountRepo != nil {
+		go s.accountRepo.UpdateHealthSuccess(account.ID)
 	}
 
 	return Response{
