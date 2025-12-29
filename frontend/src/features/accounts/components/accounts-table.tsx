@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useRef } from 'react'
 import {
   flexRender,
   getCoreRowModel,
@@ -7,6 +7,8 @@ import {
   getSortedRowModel,
 } from '@tanstack/react-table'
 import type { SortingState } from '@tanstack/react-table'
+import { Copy } from 'lucide-react'
+import { toast } from 'sonner'
 import {
   Table,
   TableBody,
@@ -15,6 +17,12 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { getAccountColumns } from './accounts-table-columns'
 import type { Account } from '../accounts.types'
@@ -26,11 +34,46 @@ interface AccountsTableProps {
   onDelete: (account: Account) => void
 }
 
+function generateCurl(accountId: string): string | null {
+  const authStorage = localStorage.getItem('auth-storage')
+  if (!authStorage) return null
+
+  const { state } = JSON.parse(authStorage)
+  const authHeader = state?.accessKey
+    ? `-H "X-Access-Key: ${state.accessKey}"`
+    : `-H "Authorization: Bearer ${state.token}"`
+
+  const baseUrl = window.location.origin.replace(':5173', ':8088')
+  return `curl -X POST "${baseUrl}/v1/chat/completions?account_id=${accountId}" \\
+  ${authHeader} \\
+  -H "Content-Type: application/json" \\
+  -d '{"model": "antigravity:claude-sonnet", "messages": [{"role": "user", "content": "Hello"}]}'`
+}
+
 export function AccountsTable({ data, isLoading, onEdit, onDelete }: AccountsTableProps) {
   const [sorting, setSorting] = useState<SortingState>([])
+  const [curlCommand, setCurlCommand] = useState<string | null>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  const handleShowCurl = (account: Account) => {
+    const curl = generateCurl(account.id)
+    if (!curl) {
+      toast.error('Not authenticated')
+      return
+    }
+    setCurlCommand(curl)
+  }
+
+  const handleCopy = () => {
+    if (textareaRef.current) {
+      textareaRef.current.select()
+      document.execCommand('copy')
+      toast.success('Copied to clipboard')
+    }
+  }
 
   const columns = useMemo(
-    () => getAccountColumns({ onEdit, onDelete }),
+    () => getAccountColumns({ onEdit, onDelete, onShowCurl: handleShowCurl }),
     [onEdit, onDelete]
   )
 
@@ -109,6 +152,26 @@ export function AccountsTable({ data, isLoading, onEdit, onDelete }: AccountsTab
           Next
         </Button>
       </div>
+
+      <Dialog open={!!curlCommand} onOpenChange={() => setCurlCommand(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Curl Command</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <textarea
+              ref={textareaRef}
+              readOnly
+              value={curlCommand || ''}
+              className="w-full h-32 p-3 font-mono text-sm bg-muted rounded-md border resize-none"
+            />
+            <Button onClick={handleCopy} className="w-full">
+              <Copy className="mr-2 h-4 w-4" />
+              Copy to Clipboard
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

@@ -10,12 +10,28 @@ import {
 } from '@/components/ui/dropdown-menu'
 import type { Account } from '../accounts.types'
 
+function copyToClipboard(text: string) {
+  if (navigator.clipboard?.writeText) {
+    navigator.clipboard.writeText(text)
+  } else {
+    const textarea = document.createElement('textarea')
+    textarea.value = text
+    textarea.style.position = 'fixed'
+    textarea.style.opacity = '0'
+    document.body.appendChild(textarea)
+    textarea.select()
+    document.execCommand('copy')
+    document.body.removeChild(textarea)
+  }
+}
+
 interface ColumnsProps {
   onEdit: (account: Account) => void
   onDelete: (account: Account) => void
+  onShowCurl: (account: Account) => void
 }
 
-export function getAccountColumns({ onEdit, onDelete }: ColumnsProps): ColumnDef<Account>[] {
+export function getAccountColumns({ onEdit, onDelete, onShowCurl }: ColumnsProps): ColumnDef<Account>[] {
   return [
     {
       accessorKey: 'id',
@@ -25,7 +41,7 @@ export function getAccountColumns({ onEdit, onDelete }: ColumnsProps): ColumnDef
         const shortId = id.length > 8 ? `${id.slice(0, 8)}...` : id
 
         const handleCopy = () => {
-          navigator.clipboard.writeText(id)
+          copyToClipboard(id)
           toast.success('ID copied to clipboard')
         }
 
@@ -96,27 +112,7 @@ export function getAccountColumns({ onEdit, onDelete }: ColumnsProps): ColumnDef
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem
-                onClick={() => {
-                  const authStorage = localStorage.getItem('auth-storage')
-                  if (!authStorage) {
-                    toast.error('Not authenticated')
-                    return
-                  }
-                  const { state } = JSON.parse(authStorage)
-                  const authHeader = state?.accessKey
-                    ? `-H "X-Access-Key: ${state.accessKey}"`
-                    : `-H "Authorization: Bearer ${state.token}"`
-
-                  const baseUrl = window.location.origin.replace(':5173', ':8088')
-                  const curl = `curl -X POST "${baseUrl}/v1/chat/completions?account_id=${account.id}" \\
-  ${authHeader} \\
-  -H "Content-Type: application/json" \\
-  -d '{"model": "antigravity:claude-sonnet", "messages": [{"role": "user", "content": "Hello"}]}'`
-                  navigator.clipboard.writeText(curl)
-                  toast.success('Curl command copied to clipboard')
-                }}
-              >
+              <DropdownMenuItem onClick={() => onShowCurl(account)}>
                 <Terminal className="mr-2 h-4 w-4" />
                 Copy Curl
               </DropdownMenuItem>
