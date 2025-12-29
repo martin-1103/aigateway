@@ -22,6 +22,7 @@ export function AccountCreateDialog({ open, onOpenChange }: AccountCreateDialogP
   const [selectedProvider, setSelectedProvider] = useState<Provider | null>(null)
   const [selectedAuthType, setSelectedAuthType] = useState<'oauth' | 'api_key' | ''>('')
   const [oauthLoading, setOauthLoading] = useState(false)
+  const [projectId, setProjectId] = useState('')
 
   const {
     register,
@@ -74,6 +75,7 @@ export function AccountCreateDialog({ open, onOpenChange }: AccountCreateDialogP
       reset()
       setSelectedProvider(null)
       setSelectedAuthType('')
+      setProjectId('')
       onOpenChange(false)
     },
   })
@@ -92,7 +94,7 @@ export function AccountCreateDialog({ open, onOpenChange }: AccountCreateDialogP
   })
 
   const handleOAuthClick = async () => {
-    if (!selectedProvider) return
+    if (!selectedProvider || !projectId.trim()) return
 
     try {
       setOauthLoading(true)
@@ -100,7 +102,7 @@ export function AccountCreateDialog({ open, onOpenChange }: AccountCreateDialogP
       // Generate PKCE codes and get auth URL
       const initResponse = await apiClient.post<{ auth_url: string }>('/api/v1/oauth/init', {
         provider: selectedProvider.id,
-        project_id: 'default',
+        project_id: projectId.trim(),
         flow_type: 'auto',
       })
 
@@ -156,6 +158,7 @@ export function AccountCreateDialog({ open, onOpenChange }: AccountCreateDialogP
           reset()
           setSelectedProvider(null)
           setSelectedAuthType('')
+          setProjectId('')
         }
         onOpenChange(isOpen)
       }}
@@ -188,16 +191,7 @@ export function AccountCreateDialog({ open, onOpenChange }: AccountCreateDialogP
 
           {selectedProvider && (
             <>
-              <FormField label="Account Label" error={errors.label?.message}>
-                <Input
-                  {...register('label')}
-                  type="text"
-                  placeholder="My Account"
-                  autoComplete="off"
-                />
-              </FormField>
-
-              {/* Auth Type Selection */}
+              {/* Auth Type Selection - shown first */}
               {(supportsOAuth || supportsAPIKey) && (
                 <FormField label="Authentication Method">
                   <div className="space-y-2">
@@ -226,6 +220,7 @@ export function AccountCreateDialog({ open, onOpenChange }: AccountCreateDialogP
                           checked={selectedAuthType === 'api_key'}
                           onChange={(e) => {
                             setSelectedAuthType(e.target.value as 'api_key')
+                            setProjectId('')
                           }}
                           className="h-4 w-4"
                         />
@@ -238,25 +233,50 @@ export function AccountCreateDialog({ open, onOpenChange }: AccountCreateDialogP
 
               {/* OAuth Flow */}
               {selectedAuthType === 'oauth' && (
-                <FormField label="OAuth Authentication">
-                  <Button
-                    type="button"
-                    onClick={handleOAuthClick}
-                    disabled={oauthLoading}
-                    className="w-full"
-                  >
-                    {oauthLoading ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Initiating...
-                      </>
-                    ) : (
-                      'Start OAuth Flow'
-                    )}
-                  </Button>
-                  <p className="text-xs text-muted-foreground mt-2">
-                    Click to open OAuth login in a popup window
-                  </p>
+                <>
+                  <FormField label="Project ID">
+                    <Input
+                      value={projectId}
+                      onChange={(e) => setProjectId(e.target.value)}
+                      placeholder="e.g., my-project, project-123, etc."
+                      autoComplete="off"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Used for quota tracking
+                    </p>
+                  </FormField>
+                  <FormField label="OAuth Authentication">
+                    <Button
+                      type="button"
+                      onClick={handleOAuthClick}
+                      disabled={oauthLoading || !projectId.trim()}
+                      className="w-full"
+                    >
+                      {oauthLoading ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Initiating...
+                        </>
+                      ) : (
+                        'Start OAuth Flow'
+                      )}
+                    </Button>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Click to open OAuth login in a popup window
+                    </p>
+                  </FormField>
+                </>
+              )}
+
+              {/* Account Label - only shown for API Key auth */}
+              {selectedAuthType === 'api_key' && (
+                <FormField label="Account Label" error={errors.label?.message}>
+                  <Input
+                    {...register('label')}
+                    type="text"
+                    placeholder="My Account"
+                    autoComplete="off"
+                  />
                 </FormField>
               )}
 
