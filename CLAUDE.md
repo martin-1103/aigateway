@@ -19,6 +19,25 @@ aigateway/
 
 ### Configuration
 
+**IMPORTANT:** Backend uses **ONLY ONE** config file: `backend/config/config.yaml`
+
+Do NOT create duplicate config files in other locations. All configuration is loaded from this single file.
+
+**Configuration priority:**
+1. `config/config.yaml` - Primary config (required)
+2. Environment variables - Override specific values (optional)
+3. `.env` file - Override specific values (optional)
+
+**Example override:**
+```bash
+# config.yaml has: auth_manager.enabled: true
+# Override with env var:
+export USE_AUTH_MANAGER=false
+
+# Or in .env file:
+USE_AUTH_MANAGER=false
+```
+
 Backend uses `config/config.yaml` for all settings. Environment variables can override config values.
 
 **Optional:** Create `.env` file to override config:
