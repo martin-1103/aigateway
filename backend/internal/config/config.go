@@ -7,11 +7,12 @@ import (
 )
 
 type Config struct {
-	Server    ServerConfig               `yaml:"server"`
-	Database  DatabaseConfig             `yaml:"database"`
-	Redis     RedisConfig                `yaml:"redis"`
-	Proxy     ProxyConfig                `yaml:"proxy"`
-	Providers map[string]ProviderConfig  `yaml:"providers"`
+	Server      ServerConfig               `yaml:"server"`
+	Database    DatabaseConfig             `yaml:"database"`
+	Redis       RedisConfig                `yaml:"redis"`
+	Proxy       ProxyConfig                `yaml:"proxy"`
+	AuthManager AuthManagerConfig          `yaml:"auth_manager"`
+	Providers   map[string]ProviderConfig  `yaml:"providers"`
 }
 
 type ProviderConfig struct {
@@ -50,6 +51,13 @@ type ProxyConfig struct {
 	RetryDelayMs         int    `yaml:"retry_delay_ms"`
 	DownRecoveryDelayMin int    `yaml:"down_recovery_delay_min"`
 	ConnectTimeoutSec    int    `yaml:"connect_timeout_sec"`
+}
+
+type AuthManagerConfig struct {
+	Enabled                     bool `yaml:"enabled"`
+	PeriodicReconcileIntervalMin int  `yaml:"periodic_reconcile_interval_min"`
+	AutoRetry                   bool `yaml:"auto_retry"`
+	MaxRetries                  int  `yaml:"max_retries"`
 }
 
 

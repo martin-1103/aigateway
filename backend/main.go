@@ -151,9 +151,10 @@ func main() {
 	// Start background token refresh (for claude/codex)
 	authManager.StartAutoRefresh(ctx, 30*time.Second)
 
-	// Start periodic reconciliation for hot-reload recovery (deferred)
+	// Start periodic reconciliation for hot-reload recovery (from config)
 	providerIDs := []string{"antigravity", "claude", "codex"}
-	authManager.StartPeriodicReconcile(ctx, 5*time.Minute, providerIDs)
+	reconcileInterval := time.Duration(cfg.AuthManager.PeriodicReconcileIntervalMin) * time.Minute
+	authManager.StartPeriodicReconcile(ctx, reconcileInterval, providerIDs)
 
 	// Load accounts async after server starts
 	go func() {
@@ -163,12 +164,17 @@ func main() {
 		}
 	}()
 
-	// Enable AuthManager for account selection (feature flag)
-	// Set to true to use health-aware selection with retry
-	useAuthManager := os.Getenv("USE_AUTH_MANAGER") == "true"
+	// Enable AuthManager for account selection (from config)
+	// Fallback to env var for backward compatibility
+	useAuthManager := cfg.AuthManager.Enabled
+	if os.Getenv("USE_AUTH_MANAGER") == "true" {
+		useAuthManager = true
+	}
 	routerService.EnableAuthManager(useAuthManager)
 	if useAuthManager {
 		log.Println("AuthManager enabled for health-aware account selection")
+	} else {
+		log.Println("AuthManager disabled - using legacy round-robin selection")
 	}
 
 	// ========================================

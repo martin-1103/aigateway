@@ -41,6 +41,7 @@ export function RequestLogsTable({ logs, isLoading }: RequestLogsTableProps) {
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead>Account</TableHead>
               <TableHead>Model</TableHead>
               <TableHead>Provider</TableHead>
               <TableHead>Status</TableHead>
@@ -51,19 +52,20 @@ export function RequestLogsTable({ logs, isLoading }: RequestLogsTableProps) {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center text-muted-foreground">
+                <TableCell colSpan={6} className="text-center text-muted-foreground">
                   Loading...
                 </TableCell>
               </TableRow>
             ) : logs.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center text-muted-foreground">
+                <TableCell colSpan={6} className="text-center text-muted-foreground">
                   No request logs found
                 </TableCell>
               </TableRow>
             ) : (
               logs.map((log) => (
                 <TableRow key={log.id}>
+                  <TableCell className="font-mono text-xs">{log.account_id ? log.account_id.substring(0, 8) : '-'}</TableCell>
                   <TableCell className="font-medium">{log.model || '-'}</TableCell>
                   <TableCell>{log.provider_id || '-'}</TableCell>
                   <TableCell>

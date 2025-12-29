@@ -17,6 +17,20 @@ aigateway/
 
 ## Backend (Go)
 
+### Configuration
+
+Backend uses `config/config.yaml` for all settings. Environment variables can override config values.
+
+**Optional:** Create `.env` file to override config:
+```bash
+cd backend
+cp .env.example .env
+```
+
+**Key Settings:**
+- `auth_manager.enabled: true` - Enables health-aware account selection with auto-retry (recommended)
+- `USE_AUTH_MANAGER=true` - Env var override for auth_manager.enabled
+
 ### Build & Run
 
 ```bash
@@ -60,11 +74,29 @@ backend/
 
 ### Request Pipeline
 
+**Default (Legacy):**
 ```
 HTTP Request → ProxyHandler → ExecutorService → RouterService
     → AccountService (round-robin) → ProxyService (fill-first)
     → OAuthService (token caching) → Provider.Execute
     → StatsTrackerService (async) → Response
+```
+
+**With AuthManager (Recommended):**
+```
+HTTP Request → ProxyHandler → ExecutorService → RouterService
+    → AuthManager.Select (health-aware) → Auto-retry on failure
+    → OAuthService (token caching) → Provider.Execute
+    → StatsTrackerService (async) → Response
+```
+
+**Enable AuthManager in `config/config.yaml`:**
+```yaml
+auth_manager:
+  enabled: true  # Enable health-aware selection with auto-retry
+  periodic_reconcile_interval_min: 5
+  auto_retry: true
+  max_retries: 3
 ```
 
 ### Provider System
