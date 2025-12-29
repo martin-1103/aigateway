@@ -40,14 +40,16 @@ function generateCurl(accountId: string): string | null {
 
   const { state } = JSON.parse(authStorage)
   const authHeader = state?.accessKey
-    ? `-H "X-Access-Key: ${state.accessKey}"`
-    : `-H "Authorization: Bearer ${state.token}"`
+    ? `X-Access-Key: ${state.accessKey}`
+    : `Authorization: Bearer ${state.token}`
 
   const baseUrl = window.location.origin.replace(':5173', ':8088')
-  return `curl -X POST "${baseUrl}/v1/chat/completions?account_id=${accountId}" \\
-  ${authHeader} \\
-  -H "Content-Type: application/json" \\
-  -d '{"model": "antigravity:claude-sonnet", "messages": [{"role": "user", "content": "Hello"}]}'`
+  const body = JSON.stringify({
+    model: 'antigravity:claude-sonnet',
+    messages: [{ role: 'user', content: 'Hello' }],
+  }).replace(/"/g, '\\"')
+
+  return `curl.exe -X POST "${baseUrl}/v1/chat/completions?account_id=${accountId}" -H "${authHeader}" -H "Content-Type: application/json" -d "${body}"`
 }
 
 export function AccountsTable({ data, isLoading, onEdit, onDelete }: AccountsTableProps) {
