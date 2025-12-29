@@ -73,10 +73,13 @@ func main() {
 
 	// Initialize core services
 	httpClientService := services.NewHTTPClientService()
+	errorLogService := services.NewErrorLogService(redis)
+	errorLogService.StartCleanupRoutine() // Cleanup logs older than 24h
+
 	accountService := services.NewAccountService(accountRepo, redis)
 	proxyService := services.NewProxyService(proxyRepo, accountRepo, &cfg.Proxy)
 	accountService.SetProxyService(proxyService) // Wire proxy service for availability checks
-	oauthService := services.NewOAuthService(redis, accountRepo, httpClientService)
+	oauthService := services.NewOAuthService(redis, accountRepo, httpClientService, errorLogService)
 	oauthFlowService := services.NewOAuthFlowService(redis, accountService, accountRepo, proxyService)
 
 	// Initialize and start token refresh service (legacy)
@@ -184,6 +187,7 @@ func main() {
 	accountHandler := handlers.NewAccountHandler(accountService)
 	proxyMgmtHandler := handlers.NewProxyManagementHandler(proxyService)
 	statsHandler := handlers.NewStatsHandler(statsQueryService)
+	logsHandler := handlers.NewLogsHandler(errorLogService)
 	modelsHandler := handlers.NewModelsHandler(modelsService)
 	modelMappingHandler := handlers.NewModelMappingHandler(modelMappingService)
 	authHandler := handlers.NewAuthHandler(authService, userService)
@@ -207,6 +211,7 @@ func main() {
 		accountHandler,
 		proxyMgmtHandler,
 		statsHandler,
+		logsHandler,
 		modelsHandler,
 		modelMappingHandler,
 		authHandler,

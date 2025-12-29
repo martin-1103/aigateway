@@ -16,6 +16,7 @@ func SetupRoutes(
 	accountHandler *handlers.AccountHandler,
 	proxyMgmtHandler *handlers.ProxyManagementHandler,
 	statsHandler *handlers.StatsHandler,
+	logsHandler *handlers.LogsHandler,
 	modelsHandler *handlers.ModelsHandler,
 	modelMappingHandler *handlers.ModelMappingHandler,
 	authHandler *handlers.AuthHandler,
@@ -108,6 +109,15 @@ func SetupRoutes(
 		{
 			stats.GET("/proxies/:id", statsHandler.GetProxyStats)
 			stats.GET("/logs", statsHandler.GetRecentLogs)
+		}
+
+		// Error logs endpoints (admin only)
+		logs := api.Group("/logs")
+		logs.Use(middleware.RequireAdmin())
+		{
+			logs.GET("/errors", logsHandler.GetRecentErrors)
+			logs.GET("/errors/range", logsHandler.GetErrorsByTimeRange)
+			logs.POST("/errors/cleanup", logsHandler.CleanupOldLogs)
 		}
 
 		// Quota endpoints (admin + user)

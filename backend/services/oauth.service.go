@@ -33,13 +33,15 @@ type OAuthService struct {
 	redis             *redis.Client
 	repo              *repositories.AccountRepository
 	httpClientService *HTTPClientService
+	errorLog          *ErrorLogService
 }
 
-func NewOAuthService(redis *redis.Client, repo *repositories.AccountRepository, httpClientService *HTTPClientService) *OAuthService {
+func NewOAuthService(redis *redis.Client, repo *repositories.AccountRepository, httpClientService *HTTPClientService, errorLog *ErrorLogService) *OAuthService {
 	return &OAuthService{
 		redis:             redis,
 		repo:              repo,
 		httpClientService: httpClientService,
+		errorLog:          errorLog,
 	}
 }
 
@@ -81,7 +83,7 @@ func (s *OAuthService) GetAccessToken(account *models.Account) (string, error) {
 			return "", fmt.Errorf("token expired and no refresh token available")
 		}
 
-		newAccessToken, newExpiresAt, err := s.refreshToken(account.ProviderID, refreshToken, account.ProxyURL)
+		newAccessToken, newExpiresAt, err := s.refreshToken(account.ProviderID, refreshToken, account.ProxyURL, account.ID)
 		if err != nil {
 			return "", fmt.Errorf("token refresh failed: %w", err)
 		}
@@ -115,7 +117,7 @@ func (s *OAuthService) GetAccessToken(account *models.Account) (string, error) {
 	return accessToken, nil
 }
 
-func (s *OAuthService) refreshToken(providerID string, refreshToken string, proxyURL string) (string, time.Time, error) {
+func (s *OAuthService) refreshToken(providerID string, refreshToken string, proxyURL string, accountID string) (string, time.Time, error) {
 	var clientID, clientSecret, tokenURL string
 
 	switch providerID {
@@ -127,6 +129,13 @@ func (s *OAuthService) refreshToken(providerID string, refreshToken string, prox
 		return "", time.Time{}, fmt.Errorf("token refresh not supported for provider: %s", providerID)
 	}
 
+	logCtx := map[string]interface{}{
+		"provider_id": providerID,
+		"account_id":  accountID,
+		"proxy_url":   proxyURL,
+		"token_url":   tokenURL,
+	}
+
 	data := url.Values{}
 	data.Set("client_id", clientID)
 	data.Set("client_secret", clientSecret)
@@ -135,6 +144,7 @@ func (s *OAuthService) refreshToken(providerID string, refreshToken string, prox
 
 	req, err := http.NewRequest("POST", tokenURL, strings.NewReader(data.Encode()))
 	if err != nil {
+		s.logError("refresh_token", "create_request", err, logCtx)
 		return "", time.Time{}, err
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
@@ -142,27 +152,40 @@ func (s *OAuthService) refreshToken(providerID string, refreshToken string, prox
 	httpClient := s.httpClientService.GetClient(proxyURL)
 	resp, err := httpClient.Do(req)
 	if err != nil {
+		s.logError("refresh_token", "http_request", err, logCtx)
 		return "", time.Time{}, err
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
+		s.logError("refresh_token", "read_body", err, logCtx)
 		return "", time.Time{}, err
 	}
 
 	if resp.StatusCode != 200 {
-		return "", time.Time{}, fmt.Errorf("token refresh failed: %s", string(body))
+		logCtx["status_code"] = resp.StatusCode
+		logCtx["response_body"] = string(body)
+		err := fmt.Errorf("token refresh failed: %s", string(body))
+		s.logError("refresh_token", "bad_status", err, logCtx)
+		return "", time.Time{}, err
 	}
 
 	var tokenResp TokenResponse
 	if err := json.Unmarshal(body, &tokenResp); err != nil {
+		s.logError("refresh_token", "parse_response", err, logCtx)
 		return "", time.Time{}, err
 	}
 
 	// Always use UTC for consistent timezone handling
 	expiresAt := time.Now().UTC().Add(time.Duration(tokenResp.ExpiresIn) * time.Second)
 	return tokenResp.AccessToken, expiresAt, nil
+}
+
+func (s *OAuthService) logError(service, operation string, err error, ctx map[string]interface{}) {
+	if s.errorLog != nil {
+		s.errorLog.LogError(service, operation, err, ctx)
+	}
 }
 
 func (s *OAuthService) InvalidateCache(account *models.Account) error {
