@@ -1,4 +1,4 @@
-import { BarChart3, Database, GitBranch, Key, Server, Shield, Users } from 'lucide-react'
+import { BarChart3, Database, GitBranch, Key, Server, Settings, Users } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
 export type Role = 'admin' | 'user' | 'provider'
@@ -19,5 +19,5 @@ export const NAV_ITEMS: NavItem[] = [
   { label: 'API Keys', href: '/api-keys', icon: Key, roles: ['admin', 'user'], allowAccessKey: false },
   { label: 'Stats', href: '/stats', icon: BarChart3, roles: ['admin', 'user'], allowAccessKey: true },
   { label: 'Model Mappings', href: '/model-mappings', icon: GitBranch, roles: ['admin', 'user'], allowAccessKey: true },
-  { label: 'OAuth', href: '/oauth', icon: Shield, roles: ['admin', 'user', 'provider'], allowAccessKey: true },
+  { label: 'Settings', href: '/settings', icon: Settings, roles: ['admin', 'user', 'provider'], allowAccessKey: false },
 ]
