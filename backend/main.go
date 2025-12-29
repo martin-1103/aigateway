@@ -124,6 +124,7 @@ func main() {
 		registry,
 		providerRepo,
 		accountService,
+		accountRepo,
 		proxyService,
 		oauthService,
 		statsTrackerService,

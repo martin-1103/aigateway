@@ -129,3 +129,45 @@ func (r *AccountRepository) ListByCreator(creatorID string, limit, offset int) (
 
 	return accounts, total, err
 }
+
+// UpdateHealthSuccess records a successful request
+func (r *AccountRepository) UpdateHealthSuccess(accountID string) error {
+	now := time.Now()
+	return r.db.Model(&models.Account{}).
+		Where("id = ?", accountID).
+		Updates(map[string]interface{}{
+			"health_status":   "healthy",
+			"failure_count":   0,
+			"last_success_at": &now,
+		}).Error
+}
+
+// UpdateHealthFailure records a failed request
+func (r *AccountRepository) UpdateHealthFailure(accountID string, errorMsg string) error {
+	now := time.Now()
+	return r.db.Model(&models.Account{}).
+		Where("id = ?", accountID).
+		Updates(map[string]interface{}{
+			"failure_count":  gorm.Expr("failure_count + 1"),
+			"last_error_at":  &now,
+			"last_error_msg": errorMsg,
+		}).Error
+}
+
+// UpdateHealthStatus sets health status based on failure count
+func (r *AccountRepository) UpdateHealthStatus(accountID string, status string) error {
+	return r.db.Model(&models.Account{}).
+		Where("id = ?", accountID).
+		Update("health_status", status).Error
+}
+
+// GetHealthyAccounts returns accounts with healthy status
+func (r *AccountRepository) GetHealthyAccounts(providerID string) ([]*models.Account, error) {
+	var accounts []*models.Account
+	err := r.db.Where("provider_id = ? AND is_active = ? AND (health_status = ? OR health_status IS NULL)",
+		providerID, true, "healthy").
+		Order("id ASC").
+		Find(&accounts).Error
+	return accounts, err
+}
+

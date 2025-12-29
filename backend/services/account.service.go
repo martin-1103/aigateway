@@ -31,6 +31,23 @@ func (s *AccountService) SelectAccount(providerID, model string) (*models.Accoun
 	key := fmt.Sprintf("account:rr:%s:%s", providerID, model)
 	ctx := context.Background()
 
+	// Try to get healthy accounts first
+	healthyAccounts, err := s.repo.GetHealthyAccounts(providerID)
+	if err == nil && len(healthyAccounts) > 0 {
+		// Filter by proxy availability
+		availableAccounts := s.filterAvailableAccounts(healthyAccounts)
+		if len(availableAccounts) > 0 {
+			idx, err := s.redis.Incr(ctx, key).Result()
+			if err != nil {
+				idx = 1
+			}
+			selected := availableAccounts[(idx-1)%int64(len(availableAccounts))]
+			go s.repo.UpdateLastUsed(selected.ID)
+			return selected, nil
+		}
+	}
+
+	// Fallback: get all active accounts (including degraded)
 	accounts, err := s.repo.GetActiveByProvider(providerID)
 	if err != nil || len(accounts) == 0 {
 		return nil, fmt.Errorf("no available accounts for provider %s", providerID)

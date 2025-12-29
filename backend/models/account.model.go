@@ -15,6 +15,14 @@ type Account struct {
 	ExpiresAt  *time.Time `gorm:"index" json:"expires_at"`
 	LastUsedAt *time.Time `json:"last_used_at"`
 	UsageCount int64      `gorm:"default:0" json:"usage_count"`
+
+	// Health tracking
+	HealthStatus   string     `gorm:"size:20;default:'healthy';index" json:"health_status"` // healthy, degraded, down
+	FailureCount   int        `gorm:"default:0" json:"failure_count"`
+	LastErrorAt    *time.Time `json:"last_error_at"`
+	LastErrorMsg   string     `gorm:"type:text" json:"last_error_msg"`
+	LastSuccessAt  *time.Time `json:"last_success_at"`
+
 	CreatedAt  time.Time  `json:"created_at"`
 	UpdatedAt  time.Time  `json:"updated_at"`
 	CreatedBy  *string    `gorm:"type:varchar(36);index" json:"created_by,omitempty"`

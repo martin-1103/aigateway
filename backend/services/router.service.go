@@ -48,6 +48,7 @@ type RouterService struct {
 	registry            *providers.Registry
 	providerRepo        *repositories.ProviderRepository
 	accountService      *AccountService
+	accountRepo         *repositories.AccountRepository
 	proxyService        *ProxyService
 	oauthService        *OAuthService
 	statsTrackerService *StatsTrackerService
@@ -62,6 +63,7 @@ func NewRouterService(
 	registry *providers.Registry,
 	providerRepo *repositories.ProviderRepository,
 	accountService *AccountService,
+	accountRepo *repositories.AccountRepository,
 	proxyService *ProxyService,
 	oauthService *OAuthService,
 	statsTrackerService *StatsTrackerService,
@@ -70,6 +72,7 @@ func NewRouterService(
 		registry:            registry,
 		providerRepo:        providerRepo,
 		accountService:      accountService,
+		accountRepo:         accountRepo,
 		proxyService:        proxyService,
 		oauthService:        oauthService,
 		statsTrackerService: statsTrackerService,
@@ -171,6 +174,8 @@ func (s *RouterService) executeWithAccount(
 	executeResp, err := provider.Execute(ctx, executeReq)
 	if err != nil {
 		s.statsTrackerService.RecordFailure(&account.ID, account.ProxyID, 0, err)
+		// Track health failure
+		go s.accountRepo.UpdateHealthFailure(account.ID, err.Error())
 		return Response{}, fmt.Errorf("provider execution failed: %w", err)
 	}
 
@@ -187,11 +192,16 @@ func (s *RouterService) executeWithAccount(
 	)
 
 	if statusCode < 200 || statusCode >= 300 {
+		// Track health failure for non-2xx
+		go s.accountRepo.UpdateHealthFailure(account.ID, fmt.Sprintf("HTTP %d", statusCode))
 		return Response{
 			StatusCode: statusCode,
 			Payload:    executeResp.Payload,
 		}, fmt.Errorf("upstream error: %d", statusCode)
 	}
+
+	// Track health success
+	go s.accountRepo.UpdateHealthSuccess(account.ID)
 
 	return Response{
 		StatusCode: statusCode,
