@@ -12,11 +12,15 @@ worktrees/
 
 # Backend
 backend/aigateway.exe
+backend/.env
+backend/config/config.yaml
+backend/internal/config/config.yaml
 
 
 # Frontend
 frontend/node_modules/
 frontend/dist/
+frontend/.env
 frontend/.env.local
 
 # MCP Server

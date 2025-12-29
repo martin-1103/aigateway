@@ -10,7 +10,9 @@ echo "=== AIGateway Deploy Script ==="
 cd "$DIR"
 
 echo "[1/5] Git pull..."
-git pull
+git fetch origin
+git reset --hard origin/master
+git clean -fd
 
 echo "[2/5] Building backend..."
 cd "$DIR/backend"
