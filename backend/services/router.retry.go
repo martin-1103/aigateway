@@ -175,7 +175,15 @@ func (s *RouterService) executeWithPermanentProxy(
 		s.statsTrackerService.RecordFailureWithRetry(&account.ID, account.ProxyID, 0, err, retryCtx.RetryCount, retryCtx.SwitchedFromAccID)
 		// Track health failure (defensive: check accountRepo exists)
 		if s.accountRepo != nil {
-			go s.accountRepo.UpdateHealthFailure(account.ID, err.Error())
+			go func() {
+				if dbErr := s.accountRepo.UpdateHealthFailure(account.ID, err.Error()); dbErr != nil {
+					fmt.Printf("[ERROR] Failed to update health failure for account %s: %v\n", account.ID, dbErr)
+				} else {
+					fmt.Printf("[DEBUG] Updated health failure for account %s (connection error)\n", account.ID)
+				}
+			}()
+		} else {
+			fmt.Printf("[WARN] accountRepo is nil, cannot track health failure (connection error)\n")
 		}
 		return Response{}, 0, nil, fmt.Errorf("provider execution failed: %w", err)
 	}
@@ -200,7 +208,15 @@ func (s *RouterService) executeWithPermanentProxy(
 	if statusCode < 200 || statusCode >= 300 {
 		// Track health failure for non-2xx (defensive: check accountRepo exists)
 		if s.accountRepo != nil {
-			go s.accountRepo.UpdateHealthFailure(account.ID, fmt.Sprintf("HTTP %d", statusCode))
+			go func() {
+				if err := s.accountRepo.UpdateHealthFailure(account.ID, fmt.Sprintf("HTTP %d", statusCode)); err != nil {
+					fmt.Printf("[ERROR] Failed to update health failure for account %s: %v\n", account.ID, err)
+				} else {
+					fmt.Printf("[DEBUG] Updated health failure for account %s (HTTP %d)\n", account.ID, statusCode)
+				}
+			}()
+		} else {
+			fmt.Printf("[WARN] accountRepo is nil, cannot track health failure\n")
 		}
 		return Response{
 			StatusCode: statusCode,
@@ -210,7 +226,13 @@ func (s *RouterService) executeWithPermanentProxy(
 
 	// Track health success (defensive: check accountRepo exists)
 	if s.accountRepo != nil {
-		go s.accountRepo.UpdateHealthSuccess(account.ID)
+		go func() {
+			if err := s.accountRepo.UpdateHealthSuccess(account.ID); err != nil {
+				fmt.Printf("[ERROR] Failed to update health success for account %s: %v\n", account.ID, err)
+			} else {
+				fmt.Printf("[DEBUG] Updated health success for account %s\n", account.ID)
+			}
+		}()
 	}
 
 	return Response{
