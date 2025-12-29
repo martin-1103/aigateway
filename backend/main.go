@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
 	"os/signal"
 	"syscall"
 	"time"
@@ -191,6 +192,11 @@ func main() {
 
 	// Initialize handlers
 	proxyHandler := handlers.NewProxyHandler(executorService, routerService)
+
+	// Get git commit hash for version tracking
+	gitVersion := getGitCommitHash()
+	proxyHandler.SetBuildInfo(gitVersion, useAuthManager)
+
 	accountHandler := handlers.NewAccountHandler(accountService)
 	proxyMgmtHandler := handlers.NewProxyManagementHandler(proxyService)
 	statsHandler := handlers.NewStatsHandler(statsQueryService)
@@ -269,4 +275,14 @@ func setupAuthStatusRoutes(r *gin.Engine, h *handlers.AuthStatusHandler, authMid
 		authStatus.GET("/metrics", h.GetMetrics)
 		authStatus.GET("/health", h.GetHealthSummary)
 	}
+}
+
+// getGitCommitHash returns the current git commit hash for version tracking
+func getGitCommitHash() string {
+	cmd := exec.Command("git", "rev-parse", "--short", "HEAD")
+	output, err := cmd.Output()
+	if err != nil {
+		return "unknown"
+	}
+	return string(output[:len(output)-1]) // trim newline
 }

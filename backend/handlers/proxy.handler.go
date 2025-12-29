@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"time"
 
 	"aigateway-backend/services"
 
@@ -15,13 +16,22 @@ import (
 type ProxyHandler struct {
 	executor      *services.ExecutorService
 	routerService *services.RouterService
+	startTime     time.Time
+	version       string
+	authManagerEnabled bool
 }
 
 func NewProxyHandler(executor *services.ExecutorService, routerService *services.RouterService) *ProxyHandler {
 	return &ProxyHandler{
 		executor:      executor,
 		routerService: routerService,
+		startTime:     time.Now(),
 	}
+}
+
+func (h *ProxyHandler) SetBuildInfo(version string, authManagerEnabled bool) {
+	h.version = version
+	h.authManagerEnabled = authManagerEnabled
 }
 
 // HandleProxy processes incoming AI model requests and routes them to appropriate providers
@@ -154,8 +164,19 @@ func (h *ProxyHandler) GetProviders(c *gin.Context) {
 
 // HealthCheck returns service health status
 func (h *ProxyHandler) HealthCheck(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{
-		"status": "ok",
+	uptime := time.Since(h.startTime)
+
+	response := gin.H{
+		"status":  "ok",
 		"service": "aigateway",
-	})
+		"started_at": h.startTime.Format(time.RFC3339),
+		"uptime_seconds": int(uptime.Seconds()),
+		"auth_manager_enabled": h.authManagerEnabled,
+	}
+
+	if h.version != "" {
+		response["version"] = h.version
+	}
+
+	c.JSON(http.StatusOK, response)
 }
