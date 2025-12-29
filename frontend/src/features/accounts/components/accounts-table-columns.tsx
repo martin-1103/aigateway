@@ -1,7 +1,6 @@
 import type { ColumnDef } from '@tanstack/react-table'
 import { Copy, MoreHorizontal, Pencil, Terminal, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
-import { getMyFullAccessKey } from '@/features/settings/api/access-key.api'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -98,19 +97,24 @@ export function getAccountColumns({ onEdit, onDelete }: ColumnsProps): ColumnDef
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem
-                onClick={async () => {
-                  try {
-                    const accessKey = await getMyFullAccessKey()
-                    const baseUrl = window.location.origin.replace(':5173', ':8088')
-                    const curl = `curl -X POST "${baseUrl}/v1/chat/completions?account_id=${account.id}" \\
-  -H "X-Access-Key: ${accessKey}" \\
+                onClick={() => {
+                  const authStorage = localStorage.getItem('auth-storage')
+                  if (!authStorage) {
+                    toast.error('Not authenticated')
+                    return
+                  }
+                  const { state } = JSON.parse(authStorage)
+                  const authHeader = state?.accessKey
+                    ? `-H "X-Access-Key: ${state.accessKey}"`
+                    : `-H "Authorization: Bearer ${state.token}"`
+
+                  const baseUrl = window.location.origin.replace(':5173', ':8088')
+                  const curl = `curl -X POST "${baseUrl}/v1/chat/completions?account_id=${account.id}" \\
+  ${authHeader} \\
   -H "Content-Type: application/json" \\
   -d '{"model": "antigravity:claude-sonnet", "messages": [{"role": "user", "content": "Hello"}]}'`
-                    navigator.clipboard.writeText(curl)
-                    toast.success('Curl command copied to clipboard')
-                  } catch {
-                    toast.error('Failed to get access key')
-                  }
+                  navigator.clipboard.writeText(curl)
+                  toast.success('Curl command copied to clipboard')
                 }}
               >
                 <Terminal className="mr-2 h-4 w-4" />
