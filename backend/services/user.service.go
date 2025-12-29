@@ -108,7 +108,11 @@ func (s *UserService) EnsureAccessKey(userID string) (string, bool, error) {
 	}
 
 	newKey := utils.GenerateAccessKey()
-	log.Printf("[UserService] Generated new key: %s...", newKey[:10])
+	keyPrefix := newKey
+	if len(newKey) > 10 {
+		keyPrefix = newKey[:10]
+	}
+	log.Printf("[UserService] Generated new key: %s...", keyPrefix)
 
 	if err := s.repo.UpdateAccessKey(userID, newKey); err != nil {
 		log.Printf("[UserService] UpdateAccessKey error: %v", err)

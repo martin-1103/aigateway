@@ -67,7 +67,11 @@ func (r *UserRepository) GetByAccessKey(key string) (*models.User, error) {
 }
 
 func (r *UserRepository) UpdateAccessKey(userID, key string) error {
-	log.Printf("[UserRepo] UpdateAccessKey: userID=%s, key=%s...", userID, key[:10])
+	keyPrefix := key
+	if len(key) > 10 {
+		keyPrefix = key[:10]
+	}
+	log.Printf("[UserRepo] UpdateAccessKey: userID=%s, key=%s...", userID, keyPrefix)
 	result := r.db.Model(&models.User{}).Where("id = ?", userID).Update("access_key", key)
 	if result.Error != nil {
 		log.Printf("[UserRepo] UpdateAccessKey error: %v", result.Error)

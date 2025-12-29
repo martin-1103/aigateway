@@ -57,7 +57,11 @@ func (s *AuthService) Login(username, password string) (*LoginResponse, error) {
 		if err != nil {
 			log.Printf("[Auth] Failed to generate access key for user %s: %v", user.Username, err)
 		} else {
-			log.Printf("[Auth] Access key for user %s: generated=%v, key_prefix=%s", user.Username, generated, key[:10])
+			keyPrefix := key
+			if len(key) > 10 {
+				keyPrefix = key[:10]
+			}
+			log.Printf("[Auth] Access key for user %s: generated=%v, key_prefix=%s", user.Username, generated, keyPrefix)
 		}
 	} else {
 		log.Printf("[Auth] User %s already has access key", user.Username)
