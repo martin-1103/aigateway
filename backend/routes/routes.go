@@ -53,6 +53,7 @@ func SetupRoutes(
 			auth.GET("/me", middleware.RequireAuth(), authHandler.Me)
 			auth.PUT("/password", middleware.RequireAuth(), authHandler.ChangePassword)
 			auth.GET("/my-key", middleware.RequireAuth(), authHandler.GetMyKey)
+			auth.GET("/my-key/full", middleware.RequireAuth(), authHandler.GetMyFullKey)
 			auth.POST("/regenerate-key", middleware.RequireAuth(), authHandler.RegenerateKey)
 		}
 

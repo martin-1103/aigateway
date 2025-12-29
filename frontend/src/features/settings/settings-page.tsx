@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Copy, RefreshCw, ExternalLink } from 'lucide-react'
-import { getMyAccessKey, regenerateAccessKey } from './api/access-key.api'
+import { getMyAccessKey, getMyFullAccessKey, regenerateAccessKey } from './api/access-key.api'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -49,6 +49,15 @@ export function SettingsPage() {
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text)
     toast.success('Copied to clipboard')
+  }
+
+  const handleOpenLite = async () => {
+    try {
+      const fullKey = await getMyFullAccessKey()
+      window.open(`/lite?key=${fullKey}`, '_blank')
+    } catch {
+      toast.error('Failed to get access key')
+    }
   }
 
   return (
@@ -106,7 +115,7 @@ export function SettingsPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => window.open('/lite', '_blank')}
+                      onClick={handleOpenLite}
                     >
                       <ExternalLink className="mr-1 h-3 w-3" />
                       Open Lite

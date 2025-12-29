@@ -97,6 +97,21 @@ func (h *AuthHandler) GetMyKey(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"key": maskedKey})
 }
 
+func (h *AuthHandler) GetMyFullKey(c *gin.Context) {
+	user := middleware.GetCurrentUser(c)
+	if user == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "not authenticated"})
+		return
+	}
+
+	if user.AccessKey == nil || *user.AccessKey == "" {
+		c.JSON(http.StatusNotFound, gin.H{"error": "no access key"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"key": *user.AccessKey})
+}
+
 func (h *AuthHandler) RegenerateKey(c *gin.Context) {
 	user := middleware.GetCurrentUser(c)
 	if user == nil {
