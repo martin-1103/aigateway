@@ -1,5 +1,6 @@
 import type { ColumnDef } from '@tanstack/react-table'
-import { MoreHorizontal, Pencil, Trash2 } from 'lucide-react'
+import { Copy, MoreHorizontal, Pencil, Trash2 } from 'lucide-react'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -16,6 +17,34 @@ interface ColumnsProps {
 
 export function getAccountColumns({ onEdit, onDelete }: ColumnsProps): ColumnDef<Account>[] {
   return [
+    {
+      accessorKey: 'id',
+      header: 'ID',
+      cell: ({ row }) => {
+        const id = row.original.id
+        const shortId = id.length > 8 ? `${id.slice(0, 8)}...` : id
+
+        const handleCopy = () => {
+          navigator.clipboard.writeText(id)
+          toast.success('ID copied to clipboard')
+        }
+
+        return (
+          <div className="flex items-center gap-1">
+            <code className="text-xs bg-muted px-1.5 py-0.5 rounded">{shortId}</code>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 w-6 p-0"
+              onClick={handleCopy}
+              title="Copy full ID"
+            >
+              <Copy className="h-3 w-3" />
+            </Button>
+          </div>
+        )
+      },
+    },
     {
       accessorKey: 'label',
       header: 'Label',

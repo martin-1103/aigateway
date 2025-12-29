@@ -46,10 +46,13 @@ func (h *ProxyHandler) HandleProxy(c *gin.Context) {
 		}
 	}
 
+	accountID := c.Query("account_id")
+
 	req := services.Request{
-		Model:   model,
-		Payload: body,
-		Stream:  stream,
+		Model:     model,
+		Payload:   body,
+		Stream:    stream,
+		AccountID: accountID,
 	}
 
 	ctx := context.Background()

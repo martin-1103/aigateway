@@ -51,7 +51,7 @@ type OAuthSession struct {
 // InitFlowRequest represents OAuth init request
 type InitFlowRequest struct {
 	Provider      string  `json:"provider" binding:"required"`
-	ProjectID     string  `json:"project_id" binding:"required"`
+	ProjectID     string  `json:"project_id"` // Optional - only required for antigravity
 	FlowType      string  `json:"flow_type" binding:"required"`
 	RedirectURI   string  `json:"redirect_uri"`
 	CreatedBy     *string `json:"created_by,omitempty"`
@@ -102,6 +102,11 @@ func (s *OAuthFlowService) SetAuthManager(m *manager.Manager) {
 func (s *OAuthFlowService) InitFlow(ctx context.Context, req *InitFlowRequest) (*InitFlowResponse, error) {
 	if req.FlowType != "auto" && req.FlowType != "manual" {
 		return nil, fmt.Errorf("invalid flow_type: must be 'auto' or 'manual'")
+	}
+
+	// Validate project_id only for antigravity provider
+	if req.Provider == "antigravity" && req.ProjectID == "" {
+		return nil, fmt.Errorf("project_id is required for antigravity provider")
 	}
 
 	redirectURI := req.RedirectURI
@@ -211,8 +216,10 @@ func (s *OAuthFlowService) ExchangeCode(ctx context.Context, callbackURL string)
 		return nil, fmt.Errorf("failed to marshal auth data: %w", err)
 	}
 
-	metadata := map[string]interface{}{
-		"project_id": session.ProjectID,
+	// Build metadata - only include project_id if present
+	metadata := make(map[string]interface{})
+	if session.ProjectID != "" {
+		metadata["project_id"] = session.ProjectID
 	}
 
 	metadataJSON, err := json.Marshal(metadata)
@@ -220,8 +227,8 @@ func (s *OAuthFlowService) ExchangeCode(ctx context.Context, callbackURL string)
 		return nil, fmt.Errorf("failed to marshal metadata: %w", err)
 	}
 
-	// Fetch user info from Google's userinfo endpoint to get email
-	userInfo, err := providerOAuth.GetUserInfo(ctx, tokenResp.AccessToken)
+	// Fetch user info - uses appropriate method per provider
+	userInfo, err := providerOAuth.GetUserInfoFromToken(ctx, tokenResp)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user info: %w", err)
 	}

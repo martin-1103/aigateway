@@ -1,6 +1,7 @@
 package oauth
 
 import (
+	"aigateway-backend/auth/codex"
 	"aigateway-backend/auth/pkce"
 	"aigateway-backend/providers/antigravity"
 	"context"
@@ -52,6 +53,7 @@ type ProviderOAuth struct {
 type TokenResponse struct {
 	AccessToken  string `json:"access_token"`
 	RefreshToken string `json:"refresh_token"`
+	IDToken      string `json:"id_token,omitempty"`
 	TokenType    string `json:"token_type"`
 	ExpiresIn    int    `json:"expires_in"`
 	Scope        string `json:"scope"`
@@ -201,10 +203,12 @@ func (p *ProviderOAuth) ExchangeCode(ctx context.Context, code string, pkceCodes
 	return &tokenResp, nil
 }
 
-// GetUserInfo fetches user info from Google's userinfo endpoint
+// GetUserInfo fetches user info from provider
+// For antigravity: calls Google userinfo endpoint
+// For codex: parses id_token from token response
 func (p *ProviderOAuth) GetUserInfo(ctx context.Context, accessToken string) (map[string]interface{}, error) {
 	if p.ProviderID != "antigravity" {
-		return nil, fmt.Errorf("userinfo endpoint only supported for antigravity provider")
+		return nil, fmt.Errorf("use GetUserInfoFromToken for non-antigravity providers")
 	}
 
 	req, err := http.NewRequestWithContext(ctx, "GET", GoogleUserInfoURL, nil)
@@ -236,6 +240,40 @@ func (p *ProviderOAuth) GetUserInfo(ctx context.Context, accessToken string) (ma
 	}
 
 	return userInfo, nil
+}
+
+// GetUserInfoFromToken extracts user info from token response
+// For codex/claude: parses id_token JWT
+// For antigravity: calls Google userinfo endpoint
+func (p *ProviderOAuth) GetUserInfoFromToken(ctx context.Context, tokenResp *TokenResponse) (map[string]interface{}, error) {
+	switch p.ProviderID {
+	case "antigravity":
+		return p.GetUserInfo(ctx, tokenResp.AccessToken)
+
+	case "codex":
+		if tokenResp.IDToken == "" {
+			return nil, fmt.Errorf("no id_token in token response")
+		}
+		claims, err := codex.ParseIDToken(tokenResp.IDToken)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse id_token: %w", err)
+		}
+		return map[string]interface{}{
+			"email":      claims.Email,
+			"name":       claims.Name,
+			"account_id": claims.Sub,
+			"picture":    claims.Picture,
+		}, nil
+
+	case "claude":
+		// Claude doesn't return id_token, use a placeholder or skip
+		return map[string]interface{}{
+			"email": "claude-user",
+		}, nil
+
+	default:
+		return nil, fmt.Errorf("unsupported provider: %s", p.ProviderID)
+	}
 }
 
 // GetProviderOAuth returns OAuth config for a provider ID

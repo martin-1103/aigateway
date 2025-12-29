@@ -104,16 +104,23 @@ export function AccountCreateDialog({ open, onOpenChange }: AccountCreateDialogP
   })
 
   const handleOAuthClick = async () => {
-    if (!selectedProvider || !projectId.trim()) return
+    if (!selectedProvider) return
+    // Only require projectId for antigravity
+    if (requiresProjectId && !projectId.trim()) return
 
     try {
       setOauthLoading(true)
 
-      const initResponse = await apiClient.post<{ auth_url: string }>('/api/v1/oauth/init', {
+      const initPayload: Record<string, string> = {
         provider: selectedProvider.id,
-        project_id: projectId.trim(),
         flow_type: 'manual',
-      })
+      }
+      // Only include project_id if provider requires it
+      if (requiresProjectId) {
+        initPayload.project_id = projectId.trim()
+      }
+
+      const initResponse = await apiClient.post<{ auth_url: string }>('/api/v1/oauth/init', initPayload)
 
       setAuthUrl(initResponse.data.auth_url)
       setOauthStep('callback')
@@ -143,6 +150,7 @@ export function AccountCreateDialog({ open, onOpenChange }: AccountCreateDialogP
 
   const supportsOAuth = selectedProvider?.supported_auth_types.includes('oauth') ?? false
   const supportsAPIKey = selectedProvider?.supported_auth_types.includes('api_key') ?? false
+  const requiresProjectId = selectedProvider?.id === 'antigravity'
 
   return (
     <FormDialog
@@ -225,22 +233,24 @@ export function AccountCreateDialog({ open, onOpenChange }: AccountCreateDialogP
               {/* OAuth Flow - Step 1: Start */}
               {selectedAuthType === 'oauth' && oauthStep === 'idle' && (
                 <>
-                  <FormField label="Project ID">
-                    <Input
-                      value={projectId}
-                      onChange={(e) => setProjectId(e.target.value)}
-                      placeholder="e.g., my-project, project-123, etc."
-                      autoComplete="off"
-                    />
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Used for quota tracking
-                    </p>
-                  </FormField>
+                  {requiresProjectId && (
+                    <FormField label="Project ID">
+                      <Input
+                        value={projectId}
+                        onChange={(e) => setProjectId(e.target.value)}
+                        placeholder="e.g., my-project, project-123, etc."
+                        autoComplete="off"
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Used for quota tracking
+                      </p>
+                    </FormField>
+                  )}
                   <FormField label="OAuth Authentication">
                     <Button
                       type="button"
                       onClick={handleOAuthClick}
-                      disabled={oauthLoading || !projectId.trim()}
+                      disabled={oauthLoading || (requiresProjectId && !projectId.trim())}
                       className="w-full"
                     >
                       {oauthLoading ? (

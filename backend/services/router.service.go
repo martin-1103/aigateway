@@ -18,6 +18,7 @@ type Request struct {
 	Model      string
 	Payload    []byte
 	Stream     bool
+	AccountID  string // Optional: override account selection for testing
 }
 
 // Response represents a unified response structure from the router

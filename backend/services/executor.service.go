@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"aigateway-backend/models"
 	"aigateway-backend/providers"
 )
 
@@ -43,10 +44,21 @@ func (s *ExecutorService) Execute(ctx context.Context, req Request) (Response, e
 
 	providerID := provider.ID()
 
-	// Step 2: Select account using round-robin
-	account, err := s.accountService.SelectAccount(providerID, resolvedModel)
-	if err != nil {
-		return Response{}, fmt.Errorf("failed to select account: %w", err)
+	// Step 2: Select account (override or round-robin)
+	var account *models.Account
+	if req.AccountID != "" {
+		account, err = s.accountService.GetByID(req.AccountID)
+		if err != nil {
+			return Response{}, fmt.Errorf("failed to get account %s: %w", req.AccountID, err)
+		}
+		if !account.IsActive {
+			return Response{}, fmt.Errorf("account %s is not active", req.AccountID)
+		}
+	} else {
+		account, err = s.accountService.SelectAccount(providerID, resolvedModel)
+		if err != nil {
+			return Response{}, fmt.Errorf("failed to select account: %w", err)
+		}
 	}
 
 	// Step 3: Assign proxy to account
@@ -120,10 +132,21 @@ func (s *ExecutorService) ExecuteStream(ctx context.Context, req Request) (*prov
 
 	providerID := provider.ID()
 
-	// Step 2: Select account using round-robin
-	account, err := s.accountService.SelectAccount(providerID, resolvedModel)
-	if err != nil {
-		return nil, fmt.Errorf("failed to select account: %w", err)
+	// Step 2: Select account (override or round-robin)
+	var account *models.Account
+	if req.AccountID != "" {
+		account, err = s.accountService.GetByID(req.AccountID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get account %s: %w", req.AccountID, err)
+		}
+		if !account.IsActive {
+			return nil, fmt.Errorf("account %s is not active", req.AccountID)
+		}
+	} else {
+		account, err = s.accountService.SelectAccount(providerID, resolvedModel)
+		if err != nil {
+			return nil, fmt.Errorf("failed to select account: %w", err)
+		}
 	}
 
 	// Step 3: Assign proxy to account
