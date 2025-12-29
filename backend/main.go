@@ -48,20 +48,6 @@ func main() {
 		log.Println("Skipping database migration (SKIP_MIGRATION=true)")
 	}
 
-	// Verify access_key column exists
-	var hasColumn int
-	db.Raw("SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'users' AND column_name = 'access_key'").Scan(&hasColumn)
-	if hasColumn > 0 {
-		log.Println("[Startup] users.access_key column exists ✓")
-	} else {
-		log.Println("[Startup] WARNING: users.access_key column NOT FOUND! Creating manually...")
-		if err := db.Exec("ALTER TABLE users ADD COLUMN access_key VARCHAR(64) UNIQUE").Error; err != nil {
-			log.Printf("[Startup] Failed to add access_key column: %v", err)
-		} else {
-			log.Println("[Startup] access_key column added successfully")
-		}
-	}
-
 	// Seed default admin user
 	if err := database.SeedDefaultAdmin(db); err != nil {
 		log.Fatalf("Failed to seed admin: %v", err)

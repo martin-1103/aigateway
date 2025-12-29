@@ -2,7 +2,9 @@ package database
 
 import (
 	"fmt"
+	"log"
 	"os"
+	"strings"
 	"time"
 
 	"aigateway-backend/internal/config"
@@ -43,7 +45,7 @@ func NewMySQL(cfg *config.DatabaseConfig) (*gorm.DB, error) {
 }
 
 func AutoMigrate(db *gorm.DB) error {
-	return db.AutoMigrate(
+	allModels := []interface{}{
 		&models.Provider{},
 		&models.Account{},
 		&models.Proxy{},
@@ -53,5 +55,17 @@ func AutoMigrate(db *gorm.DB) error {
 		&models.User{},
 		&models.APIKey{},
 		&models.AccountQuotaPattern{},
-	)
+	}
+
+	for _, model := range allModels {
+		if err := db.AutoMigrate(model); err != nil {
+			// MySQL error 1061: Duplicate key name (index already exists)
+			if strings.Contains(err.Error(), "1061") || strings.Contains(err.Error(), "Duplicate key name") {
+				log.Printf("[Migration] Skipping duplicate index: %v", err)
+				continue
+			}
+			return err
+		}
+	}
+	return nil
 }
